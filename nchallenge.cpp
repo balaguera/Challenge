@@ -1,12 +1,12 @@
 ////////////////////////////////////////////////////////////////////////////
-/** @file challenge.cpp
+/** @file nchallenge.cpp
  *  @brief Exasol challenge
  *  @details 
-    Compile with make chall     
+    Compile with make nchall     
     Execute as 
-    ./challenge.exe HOST PORT KEY DI
-
- *  @authors Andrés Balaguera-Antolinez
+    ./challenge.exe HOST PORT KEY for communication or
+    ./challenge.exe diff for testing pow using differnet difficulty-level (diff)
+ *  @authors Andrés Balaguera-Antolinez 2025
  */
  // ********************************************
 #include <string>
@@ -61,6 +61,7 @@ using namespace std;
 #define TIME_OUT // To stop code after a give time_window
 #undef  BENCHMARK
 #define _USE_COLORS_
+//#define DEBUG
 // ********************************************
 #ifdef _USE_COLORS_
 /**
@@ -125,7 +126,7 @@ const int STRING_LENGTH = 12;
 /**
  * @brief Used to solve the Proof-of-Work. Tried 8, 16, 32
 */
-constexpr int BATCH_SIZE = 32; 
+constexpr int BATCH_SIZE = 512; 
 // **************************************************************************
 /**
  * @brief Time window allowed for the process (mainly POW), in secs
@@ -235,7 +236,6 @@ int create_socket(const std::string& host, int port) {
     }
     return sock;
 }
-
 // **************************************************************************
 // SHA‑1 and hex encode
 std::string sha1_hex(const std::string& input) {
@@ -246,7 +246,6 @@ std::string sha1_hex(const std::string& input) {
       oss << std::hex << std::setw(2) << std::setfill('0') << (int)c;
   return oss.str();
 }
-
 // **************************************************************************
 std::string sha1_hex_n(const std::string& input) { //new suggestion, seems though to be slower
   unsigned char digest[SHA_DIGEST_LENGTH];
@@ -262,7 +261,6 @@ std::string sha1_hex_n(const std::string& input) { //new suggestion, seems thoug
   return result;
 }
 // **************************************************************************
-
 std::string sha256_hex(const std::string& input) {
   unsigned char hash[SHA256_DIGEST_LENGTH];
   SHA256(reinterpret_cast<const unsigned char*>(input.data()), input.size(), hash);
@@ -272,7 +270,6 @@ std::string sha256_hex(const std::string& input) {
   return oss.str();
 }
 // **************************************************************************
-
 void sha256_batch_hex(const vector<string>& inputs, vector<string>& outputs) {
 //#pragma omp parallel for
   for (size_t i = 0; i < inputs.size(); ++i) {
@@ -425,16 +422,16 @@ string solve_pow_batched(string &pads, string &authdata, bool &signal, int diffi
 #ifdef TIME_OUT
   auto start_time = chrono::high_resolution_clock::now();
 #endif    
-  int jthread=1;
 
 #ifdef USE_OMP
-#pragma omp parallel 
+#pragma omp parallel shared(solution_found) 
   {
-    jthread=omp_get_thread_num();
+    int jthread=omp_get_thread_num();
+#else
+  int jthread=0;
 #endif
     gsl_rng *gBaseRand =gsl_rng_alloc(gsl_rng_mt19937); 
     gsl_rng_set (gBaseRand, get_seed(jthread, difficulty));
-
     vector<std::string> suffix(BATCH_SIZE);
     vector<std::string> hashes(BATCH_SIZE);
 
@@ -447,22 +444,29 @@ string solve_pow_batched(string &pads, string &authdata, bool &signal, int diffi
         break;
       }
 #endif    
-
       for (int i = 0; i < BATCH_SIZE; ++i) // Allocate the ranodmd chains
         suffix[i] = random_string(gBaseRand);
 
  //   vector<std::string> inputs(BATCH_SIZE);
 //      for (int i = 0; i < BATCH_SIZE; ++i)  // Allocate random plus autdata
 //        inputs[i] = suffix[i] + authdata;
-
 // if sha256_batch_hex is parallelized (see above), 
 // we run into problems for we are are already in a parallel section. So better use sha1_hex directly 
 // in which case we can avoid the use of input[]
 //     sha256_batch_hex(inputs, hashes); 
-      for (int i = 0; i < BATCH_SIZE; ++i) // ALlocate hashes
+
+      for (int i = 0; i < BATCH_SIZE ; ++i) // ALlocate hashes
         hashes[i] = sha1_hex(suffix[i] + authdata);
 
-      for (int i = 0; i < BATCH_SIZE; ++i) {
+      bool local_found = false;
+      for (int i = 0; i < BATCH_SIZE && !local_found; ++i) {
+#ifdef DEBUG
+      static thread_local int debug_counter = 0;
+      if (++debug_counter % 100 == 0) {
+          cout << "Thread " << jthread << " testing: " << suffix[i] << " → " << hashes[i].substr(0, 12) << "\n";
+      }
+
+#endif       
         if(hashes[i].starts_with(pads)) {// Check if the checksum has enough (i.e 9 in this case) leading zeros.Uses C++20 standard library function 
           bool expected=false;
           if(solution_found.compare_exchange_strong(expected,true,std::memory_order_acq_rel)){
@@ -474,7 +478,7 @@ string solve_pow_batched(string &pads, string &authdata, bool &signal, int diffi
               cout<<"Suffix: " << suffix[i]<<endl;
               cout<<"Checksum: " << hashes[i] << RESET << endl;
             }
-            break;
+            local_found = true; // prevent duplicate prints
           }
         } 
       }
@@ -549,6 +553,7 @@ void test_solve_pow_b(bool select) // Bench the combnation of random and hash
 int main(int argc, char** argv) {
 
 
+ 
 #ifndef TEST_POW
   if (argc != 4) {
     std::cerr << "Usage: ./code <host> <port> <pem_file>\n";
@@ -625,7 +630,6 @@ int main(int argc, char** argv) {
     char buf[4096];
 #endif    
 
-    char input_char = '0';
 #ifdef USE_OMP 
     int nProcessors = omp_get_max_threads();
     cout<<CYAN<<"Using OpenMP with "<<nProcessors<<" processors for POW"<<RESET<<endl;
@@ -635,7 +639,7 @@ int main(int argc, char** argv) {
   int counter_ind=0;
   bool dec = true;
   bool signal_out=false;
-
+  char char_pad='0';  
 #ifdef TEST_POW  
   cout<<BLUE<<"-------------POW TEST--------------"<<RESET<<endl;
   string sdiff = argv[1];
@@ -645,8 +649,6 @@ int main(int argc, char** argv) {
   cout<<BLUE<<"-------------COMMUNICATION--------------"<<RESET<<endl;
 #endif
   
-
-
 #ifndef TEST_POW
       while (dec) {
         int bytes = SSL_read(ssl, buf, sizeof(buf)-1);
@@ -676,7 +678,7 @@ int main(int argc, char** argv) {
 #else
             string authdata="zhLjlDmDPamQVpQZlWZilpBvWEHKFApzkQwDsFnpAWBdrxvstzcOFcAxnQUITpZF";
 #endif
-            string pads = pad(diff,input_char);           
+            string pads = pad(diff,char_pad);           
 //            string sol=solve_pow(pads,authdata,solution_found, counter_ind);
             string sol=solve_pow_batched(pads,authdata,signal_out, diff);
             dec=false;
@@ -755,9 +757,7 @@ int main(int argc, char** argv) {
         }
 #endif        
     }
-
     auto end_all = chrono::high_resolution_clock::now();
-
 #ifndef TEST_POW
     // Cleanup
     SSL_shutdown(ssl);
@@ -768,7 +768,6 @@ int main(int argc, char** argv) {
     cout << "Connection closed."<< endl;
 #endif        
 cout<<endl;
-
 #ifdef TIME_OUT
   if(false==signal_out)
 #endif
