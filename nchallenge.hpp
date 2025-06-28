@@ -55,7 +55,8 @@ using namespace chrono;
 
 #define USE_OMP  // Define to use OMP
 #define TEST_POW // To test POW
-#define TIME_OUT // To stop code after a give time_window
+//#define TIME_OUT // To stop code after a give time_window
+#define NEW_SEED
 #undef  BENCHMARK
 #define _USE_COLORS_
 //#define DEBUG
@@ -123,13 +124,20 @@ const int STRING_LENGTH = 12;
 /**
  * @brief Used to solve the Proof-of-Work. Tried 8, 16, 32
 */
-constexpr int BATCH_SIZE = 2048; 
+constexpr int BATCH_SIZE = 512; 
 // **************************************************************************
 /**
  * @brief Time window allowed for the process (mainly POW), in secs
 */
 constexpr int TIME_WINDOW = 7200; // Two hours 
 
+// **************************************************************************
+#ifdef NEW_SEED
+/**
+ * @brief Time window allowed for the process (mainly POW), in secs before chosing a new seed
+*/
+constexpr int TIME_WINDOW_NEW_SEED = 60; //  
+#endif
 // **************************************************************************
 /**
  * @brief Number of calculatios to copmpare hases and random geenerator

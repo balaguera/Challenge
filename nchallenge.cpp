@@ -44,7 +44,6 @@ void test_random() // Test differnet GSL random number generators applied to ran
     cout<<YELLOW<<"gsl_rng_ranlxs0 done in "<<difftime(end_allt,start_1)<<" seconds. "<<diffe<<" rans/secs "<<RESET<<endl;
     gsl_rng_free(gBaseRand);
 
-
     gBaseRand =gsl_rng_alloc(gsl_rng_ranlux);
     gsl_rng_set (gBaseRand, seed);
     time(&start_1);
@@ -54,16 +53,13 @@ void test_random() // Test differnet GSL random number generators applied to ran
     diffe=static_cast<float>(STEPS_TEST)/difftime(end_allt,start_1);
     cout<<YELLOW<<"gsl_rng_ranlux done in "<<difftime(end_allt,start_1)<<" seconds. "<<diffe<<" rans/secs "<<RESET<<endl;
     gsl_rng_free(gBaseRand);
-
-
   }
 
 // **************************************************************************
 void test_hash(){
 
-  cout<<GREEN<<"TESTING HASH"<<RESET<<endl;
-
-  vector<string> batch_inputs(STEPS_TEST, "51sdas6sdefs3aaaaa");
+ cout<<GREEN<<"TESTING HASH"<<RESET<<endl;
+ vector<string> batch_inputs(STEPS_TEST, "51sdas6sdefs3aaaaa");
  vector<string> hashes(STEPS_TEST);
 
  time_t start_1; 
@@ -83,13 +79,11 @@ void test_hash(){
  diffe=static_cast<float>(STEPS_TEST)/difftime(end_allt,start_1);
  cout<<YELLOW<<"sha1_hex_n done in "<<difftime(end_allt,start_1)<<" seconds. "<<diffe<<"  hash/secs "<<RESET<<endl;
 
-  time(&start_1);
-  sha256_batch_hex(batch_inputs, hashes);
-  time(&end_allt);
-  diffe=static_cast<float>(STEPS_TEST)/difftime(end_allt,start_1);
-  cout<<YELLOW<<"sha256_batch_hex done in "<<difftime(end_allt,start_1)<<" seconds. "<<diffe<<"  hash/secs "<<RESET<<endl;
-
-
+ time(&start_1);
+ sha256_batch_hex(batch_inputs, hashes);
+ time(&end_allt);
+ diffe=static_cast<float>(STEPS_TEST)/difftime(end_allt,start_1);
+ cout<<YELLOW<<"sha256_batch_hex done in "<<difftime(end_allt,start_1)<<" seconds. "<<diffe<<"  hash/secs "<<RESET<<endl;
 }
 
 
@@ -195,6 +189,7 @@ void test_solve_pow_b(bool select) // Bench the combnation of random and hash
 // **************************************************************************
 // **************************************************************************
 // **************************************************************************
+// "é);;Fb%a7B1m" estevio la luz una vez con diff=9 en 3.40878 secs
 // **************************************************************************
 string solve_pow_batched(string &pads, string &authdata, bool &signal, int difficulty)
 {
@@ -217,6 +212,13 @@ string solve_pow_batched(string &pads, string &authdata, bool &signal, int diffi
     gsl_rng_set (gBaseRand, get_seed(jthread, difficulty));
     vector<std::string> suffix(BATCH_SIZE);
     vector<std::string> hashes(BATCH_SIZE);
+ 
+#ifdef NEW_SEED
+new_seed:
+  auto start_time_new_seed = chrono::high_resolution_clock::now();
+#endif
+   gsl_rng_set (gBaseRand, get_seed(jthread, difficulty));
+
 
     while (!solution_found.load(std::memory_order_acquire)){
 
@@ -227,8 +229,17 @@ string solve_pow_batched(string &pads, string &authdata, bool &signal, int diffi
         break;
       }
 #endif    
+
+#ifdef NEW_SEED
+      auto end_time_new_seed = chrono::high_resolution_clock::now();
+      if(chrono::duration<double>(end_time_new_seed-start_time_new_seed).count()>=TIME_WINDOW_NEW_SEED){
+        if(jthread==0)cout<<GREEN<<"Chosing new seed"<<RESET<<endl;
+        goto new_seed;
+      }
+#endif    
+
       for (int i = 0; i < BATCH_SIZE; ++i) // Allocate the ranodmd chains
-        suffix[i] = random_string(gBaseRand);
+       suffix[i] = random_string(gBaseRand);
 
  //   vector<std::string> inputs(BATCH_SIZE);
 //      for (int i = 0; i < BATCH_SIZE; ++i)  // Allocate random plus autdata
@@ -310,6 +321,11 @@ int main(int argc, char** argv) {
 #ifdef TIME_OUT
   cout<<YELLOW<<"Timeout set to "<<TIME_WINDOW<<" secs "<<RESET<<endl;
 #endif
+
+#ifdef NEW_SEED
+  cout<<YELLOW<<"New seed is chosen after "<<TIME_WINDOW_NEW_SEED<<" secs "<<RESET<<endl;
+#endif
+
   cout<<endl;
 
 #ifdef BENCHMARK
@@ -370,6 +386,7 @@ int main(int argc, char** argv) {
   bool dec = true;
   bool signal_out=false;
   char char_pad='0';  
+
 #ifdef TEST_POW  
   cout<<BLUE<<"-------------POW TEST--------------"<<RESET<<endl;
   string sdiff = argv[1];
