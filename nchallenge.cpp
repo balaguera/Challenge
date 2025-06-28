@@ -55,8 +55,18 @@ using namespace std;
 
 // ********************************************
 #define USE_OMP  // Define to use OMP
-#define TEST_POW
+#define TEST_POW // To test POW
+//#define TIME_OUT // To stop code after a give time_window
 #define _USE_COLORS_
+// ********************************************
+#ifdef _USE_COLORS_
+/**
+ * @brief Color Red
+*/
+#define RED     "\033[31m"      /* Red */
+#else
+#define RED   RESET
+#endif
 // ********************************************
 #ifdef _USE_COLORS_
 /**
@@ -113,9 +123,14 @@ const int STRING_LENGTH = 10;
  * @brief Used to solve the Proof-of-Work. Tried 8, 16, 32
 */
 constexpr int BATCH_SIZE = 64; 
-
+// **************************************************************************
+/**
+ * @brief Time window allowed for the process (mainly POW), in secs
+*/
+constexpr int TIME_WINDOW = 7200; // Two hours 
 
 // **************************************************************************
+/*
 string random_string(gsl_rng *gBaseRand)
 {
   const string ALPHA = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()-_=+[]{};:',<.>/?áéíóúñçàèìòù";
@@ -129,12 +144,36 @@ string random_string(gsl_rng *gBaseRand)
       }
   return rstring;    
 }
+*/
+// **************************************************************************
+string random_string(gsl_rng *gBaseRand) {
+  // Valid UTF-8 characters (you can expand this list)
+  const vector<string> ALPHA = {
+      "A","B","C","D","E","F","G","H","I","J","K","L","M",
+      "N","O","P","Q","R","S","T","U","V","W","X","Y","Z",
+      "a","b","c","d","e","f","g","h","i","j","k","l","m",
+      "n","o","p","q","r","s","t","u","v","w","x","y","z",
+      "0","1","2","3","4","5","6","7","8","9",
+      "!","@","#","$","%","^","&","*","(",")","-","_","=","+",
+      "[","]","{","}",";",":","'",",","<",".",">","/","?",
+      "á","é","í","ó","ú","ñ","ç","à","è","ì","ò","ù"
+  };
 
+  int isize = ALPHA.size();
+  string rstring;
+  rstring.reserve(STRING_LENGTH * 2); // UTF-8 chars may be 2+ bytes
 
-std::string random_string_b(gsl_rng* rng) { // This shows similar efficiency as random_string(rng)
+  for (int i = 0; i < STRING_LENGTH; ++i) {
+      int nc = gsl_rng_uniform_int(gBaseRand, isize);
+      rstring += ALPHA[nc];
+  }
+  return rstring;
+}
+// **************************************************************************
+string random_string_b(gsl_rng* gBaseRand) { // This shows similar efficiency as random_string(rng)
   std::string str(STRING_LENGTH, 0);
   for (int i = 0; i < STRING_LENGTH; ++i)
-      str[i] = static_cast<char>(gsl_rng_uniform_int(rng, 256));
+      str[i] = static_cast<char>(gsl_rng_uniform_int(gBaseRand, 256));
   return str;
 }
 
@@ -154,7 +193,7 @@ ULONG get_seed(int thread)
 //  struct timeval tv;
 // gettimeofday(&tv, nullptr); // Get time with microsecond precision
 //  ULONG seed = static_cast<ULONG>(tv.tv_sec) ^ (tv.tv_usec << 16) ^ (thread* 0x9E3779B9) ^ getpid();
-  return  (thread * 0x9E3779B9) ^ getpid() ;
+  return  (thread * 0x9E3779B9) ;//^ getpid() ;
 }
 
 // **************************************************************************
@@ -313,7 +352,7 @@ string solve_pow(string &pads, string &authdata, atomic<bool>&solution_found, in
  return solution;
 }
 // **************************************************************************
-string solve_pow_b(string &pads, string &authdata, atomic<bool>&solution_found)
+string solve_pow_b(string &pads, string &authdata, atomic<bool>&solution_found, time_t &time_inic, bool &signal)
 {
   string solution;
   #pragma omp parallel 
@@ -328,6 +367,14 @@ string solve_pow_b(string &pads, string &authdata, atomic<bool>&solution_found)
     vector<std::string> inputs(BATCH_SIZE);
 
     while (!solution_found.load(std::memory_order_acquire)){
+#ifdef TIME_OUT
+      time_t time_end;
+      time(&time_end);
+      if(difftime(time_end, time_inic)>=TIME_WINDOW){
+        signal=true;
+        break;
+      }
+#endif    
 
       for (int i = 0; i < BATCH_SIZE; ++i)
         suffix[i] = random_string(gBaseRand);
@@ -338,6 +385,8 @@ string solve_pow_b(string &pads, string &authdata, atomic<bool>&solution_found)
         sha256_batch_hex(inputs, hashes);
 //      for (int i = 0; i < BATCH_SIZE; ++i) 
 //        hashes[i] = sha256_hex(suffix[i] + authdata);
+
+
 
       for (int i = 0; i < BATCH_SIZE; ++i) {
         if(hashes[i].starts_with(pads)) {// Check if the checksum has enough (i.e 9 in this case) leading zeros.Uses C++20 standard library function 
@@ -355,6 +404,9 @@ string solve_pow_b(string &pads, string &authdata, atomic<bool>&solution_found)
     }
   gsl_rng_free(gBaseRand);
   } 
+
+
+
   return solution;
 }
 
@@ -394,9 +446,11 @@ if (argc != 2) {
     cout<<"================================="<<RESET<<endl;
     time_t start_all;
     time(&start_all);
-    cout<<endl;
     cout<<YELLOW<<"Starting at "<<ctime(&start_all)<<RESET<<endl;
-
+#ifdef TIME_OUT
+  cout<<YELLOW<<"Timeout set to "<<TIME_WINDOW<<" secs "<<RESET<<endl;
+#endif
+   cout<<endl;
 
     //----------------
 /*
@@ -464,6 +518,7 @@ if (argc != 2) {
 
   int counter_ind=0;
   bool dec = true;
+  bool signal_out=false;
 
 #ifdef TEST_POW  
   cout<<BLUE<<"-------------POW TEST--------------"<<RESET<<endl;
@@ -506,9 +561,13 @@ if (argc != 2) {
             string authdata="zhLjlDmDPamQVpQZlWZilpBvWEHKFApzkQwDsFnpAWBdrxvstzcOFcAxnQUITpZF";
 #endif
             string pads = pad(diff,input_char);           
+            time_t time_out;
+            time(&time_out);
 //            string sol=solve_pow(pads,authdata,solution_found, counter_ind);
-            string sol=solve_pow_b(pads,authdata,solution_found);
+            string sol=solve_pow_b(pads,authdata,solution_found,time_out, signal_out);
             dec=false;
+            if(true==signal_out)
+              break;
             
 #ifndef TEST_POW
             SSL_write(ssl, sol.c_str(), sol.size());
@@ -591,12 +650,18 @@ if (argc != 2) {
     SSL_CTX_free(ctx);
     cleanup_openssl();
     cout << "Connection closed."<< endl;
-    #endif        
+#endif        
 
+#ifdef TIME_OUT
+if(false==signal_out)
+#endif
+  cout<<YELLOW<<"Solution found in "<<difftime(end_all,start_all)<<" seconds"<<RESET<<endl;
+  #ifdef TIME_OUT
+  else
+      cout<<RED<<"TIME OUT!. Solution not found in allowed time lapse (" <<TIME_WINDOW<<" s). Try to decrease difficulty or increase time window."<<RESET<<endl;
+      #endif
 
-    cout<<YELLOW<<"Solution found in "<<difftime(end_all,start_all)<<" seconds"<<RESET<<endl;
-
-    return 0;
+      return 0;
 }
 
 
