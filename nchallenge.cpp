@@ -50,13 +50,16 @@
 #include <boost/uuid/detail/sha1.hpp>
 #include <omp.h>
 #include <atomic>
+#include <chrono>
 
 using namespace std;
 
 // ********************************************
+
 #define USE_OMP  // Define to use OMP
 #define TEST_POW // To test POW
-//#define TIME_OUT // To stop code after a give time_window
+#define TIME_OUT // To stop code after a give time_window
+#undef  BENCHMARK
 #define _USE_COLORS_
 // ********************************************
 #ifdef _USE_COLORS_
@@ -117,12 +120,12 @@ const int ERROR_STATUS = -1;
  * @brief Lengh of random string.
  * @details The string engs depends on the degreee of difficulty. Large difficulties need larger strings to increase entropy
 */
-const int STRING_LENGTH = 10;
+const int STRING_LENGTH = 12;
 // **************************************************************************
 /**
  * @brief Used to solve the Proof-of-Work. Tried 8, 16, 32
 */
-constexpr int BATCH_SIZE = 64; 
+constexpr int BATCH_SIZE = 32; 
 // **************************************************************************
 /**
  * @brief Time window allowed for the process (mainly POW), in secs
@@ -130,42 +133,35 @@ constexpr int BATCH_SIZE = 64;
 constexpr int TIME_WINDOW = 7200; // Two hours 
 
 // **************************************************************************
-/*
-string random_string(gsl_rng *gBaseRand)
-{
-  const string ALPHA = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()-_=+[]{};:',<.>/?áéíóúñçàèìòù";
-  int isize=ALPHA.size();
-  std::string rstring;
-  rstring.reserve(STRING_LENGTH);
-  for(int i=0;i<STRING_LENGTH;++i)
-     {
-        int nc= gsl_rng_uniform_int(gBaseRand,isize);
-        rstring+=ALPHA[nc];
-      }
-  return rstring;    
-}
+/**
+ * @brief Number of calculatios to copmpare hases and random geenerator
 */
+constexpr int STEPS_TEST = 500000; 
+
+// **************************************************************************
+
+/**
+ * @brief  Valid UTF-8 characters (you can expand this list) 
+*/
+
+const vector<string> ALPHA = {
+  "A","B","C","D","E","F","G","H","I","J","K","L","M",
+  "N","O","P","Q","R","S","T","U","V","W","X","Y","Z",
+  "a","b","c","d","e","f","g","h","i","j","k","l","m",
+  "n","o","p","q","r","s","t","u","v","w","x","y","z",
+  "0","1","2","3","4","5","6","7","8","9",
+  "!","@","#","$","%","^","&","*","(",")","-","_","=","+",
+  "[","]","{","}",";",":","'",",","<",".",">","/","?",
+  "á","é","í","ó","ú","ñ","ç","à","è","ì","ò","ù"
+};
+
 // **************************************************************************
 string random_string(gsl_rng *gBaseRand) {
-  // Valid UTF-8 characters (you can expand this list)
-  const vector<string> ALPHA = {
-      "A","B","C","D","E","F","G","H","I","J","K","L","M",
-      "N","O","P","Q","R","S","T","U","V","W","X","Y","Z",
-      "a","b","c","d","e","f","g","h","i","j","k","l","m",
-      "n","o","p","q","r","s","t","u","v","w","x","y","z",
-      "0","1","2","3","4","5","6","7","8","9",
-      "!","@","#","$","%","^","&","*","(",")","-","_","=","+",
-      "[","]","{","}",";",":","'",",","<",".",">","/","?",
-      "á","é","í","ó","ú","ñ","ç","à","è","ì","ò","ù"
-  };
-
   int isize = ALPHA.size();
   string rstring;
-  rstring.reserve(STRING_LENGTH * 2); // UTF-8 chars may be 2+ bytes
-
+  rstring.reserve(STRING_LENGTH * 3); // UTF-8 chars may be 2+ bytes
   for (int i = 0; i < STRING_LENGTH; ++i) {
-      int nc = gsl_rng_uniform_int(gBaseRand, isize);
-      rstring += ALPHA[nc];
+      rstring += ALPHA[gsl_rng_uniform_int(gBaseRand, isize)];
   }
   return rstring;
 }
@@ -178,7 +174,8 @@ string random_string_b(gsl_rng* gBaseRand) { // This shows similar efficiency as
 }
 
 // **************************************************************************
-std::string pad(int &per, char &lett) {
+string pad(int &per, char &lett) // Build a string of 'per' chars 'letters'
+ { 
   vector<char>data;
   for(int i=0; i<per;++i)
     data.push_back(lett);
@@ -188,12 +185,14 @@ std::string pad(int &per, char &lett) {
   return full;
 }
 // **************************************************************************
-ULONG get_seed(int thread)
-{
-//  struct timeval tv;
-// gettimeofday(&tv, nullptr); // Get time with microsecond precision
-//  ULONG seed = static_cast<ULONG>(tv.tv_sec) ^ (tv.tv_usec << 16) ^ (thread* 0x9E3779B9) ^ getpid();
-  return  (thread * 0x9E3779B9) ;//^ getpid() ;
+ULONG get_seed(int thread, int difficulty)// Returns a well-spread 64-bit seed per thread 
+ {
+  using namespace std::chrono;
+  auto now = high_resolution_clock::now().time_since_epoch().count();
+  uint64_t pid = static_cast<uint64_t>(getpid());
+  uint64_t base_seed = static_cast<uint64_t>(now) ^ pid;
+  const uint64_t GOLDEN_RATIO = 0x9e3779b97f4a7c15ULL;
+  return base_seed *difficulty + thread * GOLDEN_RATIO;
 }
 
 // **************************************************************************
@@ -275,24 +274,90 @@ std::string sha256_hex(const std::string& input) {
 // **************************************************************************
 
 void sha256_batch_hex(const vector<string>& inputs, vector<string>& outputs) {
-#pragma omp parallel for
+//#pragma omp parallel for
   for (size_t i = 0; i < inputs.size(); ++i) {
       outputs[i] = sha256_hex(inputs[i]);
   }
 }
 // **************************************************************************
 // **************************************************************************
-void test_function()
+void test_random() // Test differnet GSL random number generators applied to random strings
 {
+    cout<<GREEN<<"TESTING RANDOM"<<RESET<<endl;
     int jthread=1;//omp_get_thread_num();
-    ULONG seed = get_seed(jthread);    // If in debug mode (available under TEST_POW), all threads share the same seed, hence solution is always the same found by the same thread
+    ULONG seed = get_seed(jthread,1);    // If in debug mode (available under TEST_POW), all threads share the same seed, hence solution is always the same found by the same thread
     gsl_rng *gBaseRand =gsl_rng_alloc(gsl_rng_mt19937); //(gsl_rng_mt19937); // gsl_rng_ranlxs0 is faster
     gsl_rng_set (gBaseRand, seed);
-    string suffix=random_string(gBaseRand); //Short random string, server accepts all utf-8 characters:
-    //string suffix=random_string_b(gBaseRand); //Short random string, server accepts all utf-8 characters:
-  //  string cksum_in_hex = sha256_hex(suffix);  //Hash the random sufix and the authdata. 
+
+    time_t start_1; 
+    time_t end_allt;
+
+    time(&start_1);
+    for(ULONG i=0;i<STEPS_TEST;++i)
+      string suffix=random_string(gBaseRand); //Short random string, server accepts all utf-8 characters:
+    time(&end_allt);
+    float diffe=static_cast<float>(STEPS_TEST)/difftime(end_allt,start_1);
+    cout<<YELLOW<<"gsl_rng_mt19937 done in "<<difftime(end_allt,start_1)<<" seconds. "<<diffe<<" rans/secs "<<RESET<<endl;
     gsl_rng_free(gBaseRand);
+
+    gBaseRand =gsl_rng_alloc(gsl_rng_ranlxs0);
+    gsl_rng_set (gBaseRand, seed);
+    time(&start_1);
+    for(ULONG i=0;i<STEPS_TEST;++i)
+      string suffix=random_string(gBaseRand); //Short random string, server accepts all utf-8 characters:
+    time(&end_allt);
+    diffe=static_cast<float>(STEPS_TEST)/difftime(end_allt,start_1);
+    cout<<YELLOW<<"gsl_rng_ranlxs0 done in "<<difftime(end_allt,start_1)<<" seconds. "<<diffe<<" rans/secs "<<RESET<<endl;
+    gsl_rng_free(gBaseRand);
+
+
+    gBaseRand =gsl_rng_alloc(gsl_rng_ranlux);
+    gsl_rng_set (gBaseRand, seed);
+    time(&start_1);
+    for(ULONG i=0;i<STEPS_TEST;++i)
+      string suffix=random_string(gBaseRand); //Short random string, server accepts all utf-8 characters:
+    time(&end_allt);
+    diffe=static_cast<float>(STEPS_TEST)/difftime(end_allt,start_1);
+    cout<<YELLOW<<"gsl_rng_ranlux done in "<<difftime(end_allt,start_1)<<" seconds. "<<diffe<<" rans/secs "<<RESET<<endl;
+    gsl_rng_free(gBaseRand);
+
+
+  }
+
+// **************************************************************************
+void test_hash(){
+
+  cout<<GREEN<<"TESTING HASH"<<RESET<<endl;
+
+  vector<string> batch_inputs(STEPS_TEST, "51sdas6sdefs3aaaaa");
+ vector<string> hashes(STEPS_TEST);
+
+ time_t start_1; 
+ time_t end_allt;
+
+ time(&start_1);
+ for(ULONG i=0;i<STEPS_TEST;++i)
+    string ss=sha1_hex(batch_inputs[i]);
+ time(&end_allt);
+ float diffe=static_cast<float>(STEPS_TEST)/difftime(end_allt,start_1);
+ cout<<YELLOW<<"sha1_hex done in "<<difftime(end_allt,start_1)<<" seconds. "<<diffe<<"  hash/secs "<<RESET<<endl;
+
+ time(&start_1);
+ for(ULONG i=0;i<STEPS_TEST;++i)
+    string ss=sha1_hex_n(batch_inputs[i]);
+ time(&end_allt);
+ diffe=static_cast<float>(STEPS_TEST)/difftime(end_allt,start_1);
+ cout<<YELLOW<<"sha1_hex_n done in "<<difftime(end_allt,start_1)<<" seconds. "<<diffe<<"  hash/secs "<<RESET<<endl;
+
+  time(&start_1);
+  sha256_batch_hex(batch_inputs, hashes);
+  time(&end_allt);
+  diffe=static_cast<float>(STEPS_TEST)/difftime(end_allt,start_1);
+  cout<<YELLOW<<"sha256_batch_hex done in "<<difftime(end_allt,start_1)<<" seconds. "<<diffe<<"  hash/secs "<<RESET<<endl;
+
+
 }
+
 
 // **************************************************************************
 // **************************************************************************
@@ -304,8 +369,8 @@ string solve_pow(string &pads, string &authdata, atomic<bool>&solution_found, in
 #pragma omp parallel shared(solution_found, counter_ind) 
   {
     int jthread=omp_get_thread_num();
-    gsl_rng *gBaseRand =gsl_rng_alloc (gsl_rng_ranlxs0);
-    ULONG seed = get_seed(jthread);    // If in debug mode (available under TEST_POW), all threads share the same seed, hence solution is always the same found by the same thread
+    gsl_rng *gBaseRand =gsl_rng_alloc (gsl_rng_mt19937);
+    ULONG seed = get_seed(jthread,1);    // If in debug mode (available under TEST_POW), all threads share the same seed, hence solution is always the same found by the same thread
     gsl_rng_set (gBaseRand, seed);//Add the counter to the seed
 #else
     gsl_rng *gBaseRand =gsl_rng_alloc (gsl_rng_ranlxs0);
@@ -352,50 +417,62 @@ string solve_pow(string &pads, string &authdata, atomic<bool>&solution_found, in
  return solution;
 }
 // **************************************************************************
-string solve_pow_b(string &pads, string &authdata, atomic<bool>&solution_found, time_t &time_inic, bool &signal)
+string solve_pow_batched(string &pads, string &authdata, bool &signal, int difficulty)
 {
   string solution;
-  #pragma omp parallel 
+  atomic<bool> solution_found(false); // Use thread-safe information
+
+#ifdef TIME_OUT
+  auto start_time = chrono::high_resolution_clock::now();
+#endif    
+  int jthread=1;
+
+#ifdef USE_OMP
+#pragma omp parallel 
   {
-    int jthread=omp_get_thread_num();
-    ULONG seed = get_seed(jthread);    
+    jthread=omp_get_thread_num();
+#endif
     gsl_rng *gBaseRand =gsl_rng_alloc(gsl_rng_mt19937); 
-    gsl_rng_set (gBaseRand, seed);
+    gsl_rng_set (gBaseRand, get_seed(jthread, difficulty));
 
     vector<std::string> suffix(BATCH_SIZE);
     vector<std::string> hashes(BATCH_SIZE);
-    vector<std::string> inputs(BATCH_SIZE);
 
     while (!solution_found.load(std::memory_order_acquire)){
+
 #ifdef TIME_OUT
-      time_t time_end;
-      time(&time_end);
-      if(difftime(time_end, time_inic)>=TIME_WINDOW){
+      auto end_time = chrono::high_resolution_clock::now();
+      if(chrono::duration<double>(end_time-start_time).count()>=TIME_WINDOW){
         signal=true;
         break;
       }
 #endif    
 
-      for (int i = 0; i < BATCH_SIZE; ++i)
+      for (int i = 0; i < BATCH_SIZE; ++i) // Allocate the ranodmd chains
         suffix[i] = random_string(gBaseRand);
 
-        for (int i = 0; i < BATCH_SIZE; ++i) 
-        inputs[i] = suffix[i] + authdata;
+ //   vector<std::string> inputs(BATCH_SIZE);
+//      for (int i = 0; i < BATCH_SIZE; ++i)  // Allocate random plus autdata
+//        inputs[i] = suffix[i] + authdata;
 
-        sha256_batch_hex(inputs, hashes);
-//      for (int i = 0; i < BATCH_SIZE; ++i) 
-//        hashes[i] = sha256_hex(suffix[i] + authdata);
-
-
+// if sha256_batch_hex is parallelized (see above), 
+// we run into problems for we are are already in a parallel section. So better use sha1_hex directly 
+// in which case we can avoid the use of input[]
+//     sha256_batch_hex(inputs, hashes); 
+      for (int i = 0; i < BATCH_SIZE; ++i) // ALlocate hashes
+        hashes[i] = sha1_hex(suffix[i] + authdata);
 
       for (int i = 0; i < BATCH_SIZE; ++i) {
         if(hashes[i].starts_with(pads)) {// Check if the checksum has enough (i.e 9 in this case) leading zeros.Uses C++20 standard library function 
           bool expected=false;
-          if(solution_found.compare_exchange_strong(expected,true)){
+          if(solution_found.compare_exchange_strong(expected,true,std::memory_order_acq_rel)){
 #pragma omp critical
             {
               solution=suffix[i];
-              cout << CYAN << "POW solution found by thread " << jthread << "  Suffix: " << suffix[i]<< " Checksum: " << hashes[i] << RESET << endl;
+              cout<<endl;
+              cout << CYAN << "POW solution found by thread " << jthread <<endl;
+              cout<<"Suffix: " << suffix[i]<<endl;
+              cout<<"Checksum: " << hashes[i] << RESET << endl;
             }
             break;
           }
@@ -403,12 +480,55 @@ string solve_pow_b(string &pads, string &authdata, atomic<bool>&solution_found, 
       }
     }
   gsl_rng_free(gBaseRand);
-  } 
+#ifdef USE_OMP
+} 
+#endif
 
-
-
-  return solution;
+return solution;
 }
+
+// **************************************************************************
+void test_solve_pow_b(bool select) // Bench the combnation of random and hash
+{
+
+  cout<<GREEN<<"TESTING SOLVE_POW"<<RESET<<endl;
+  time_t start_1; 
+  time(&start_1);
+ 
+   int jthread=0;//omp_get_thread_num();
+   gsl_rng *gBaseRand =gsl_rng_alloc(gsl_rng_mt19937); 
+   gsl_rng_set (gBaseRand, get_seed(jthread,1));
+   string authdata="lkk5sdf14313fg12fdg31";// some test
+   vector<std::string> suffix(BATCH_SIZE);
+   vector<std::string> hashes(BATCH_SIZE);
+   if(select)
+   {
+    for(ULONG i=0;i<STEPS_TEST;++i){
+      for (int i = 0; i < BATCH_SIZE; ++i)
+        suffix[i] = random_string(gBaseRand);
+      for (int i = 0; i < BATCH_SIZE; ++i) 
+        hashes[i] = sha1_hex(suffix[i] + authdata);
+     }
+    }
+    else {
+      vector<std::string> inputs(BATCH_SIZE);
+      for(ULONG i=0;i<STEPS_TEST;++i){
+        for (int i = 0; i < BATCH_SIZE; ++i)
+          suffix[i] = random_string(gBaseRand);
+        for (int i = 0; i < BATCH_SIZE; ++i) 
+          inputs[i] = suffix[i] + authdata;
+        sha256_batch_hex(inputs, hashes);
+      }
+    }
+  gsl_rng_free(gBaseRand);
+   time_t end_allt;
+  time(&end_allt);
+  float diffe=static_cast<float>(STEPS_TEST)/difftime(end_allt,start_1);
+  if(select)cout<<YELLOW<<__PRETTY_FUNCTION__<<" sha1_hex done in "<<difftime(end_allt,start_1)<<" seconds. "<<diffe<<"  operations/secs "<<RESET<<endl;
+  else cout<<YELLOW<<__PRETTY_FUNCTION__<<" sha256_batch_hex done in "<<difftime(end_allt,start_1)<<" seconds. "<<diffe<<"  operations/secs "<<RESET<<endl;
+}
+
+
 
 // **************************************************************************
 // **************************************************************************
@@ -431,44 +551,41 @@ int main(int argc, char** argv) {
 
 #ifndef TEST_POW
   if (argc != 4) {
-        std::cerr << "Usage: ./code <host> <port> <pem_file>\n";
-        return 1;
-    }
+    std::cerr << "Usage: ./code <host> <port> <pem_file>\n";
+    return 1;
+  }
 #else
-if (argc != 2) {
-  std::cerr << "Usage: ./code <diff> "<<endl;
-  return 1;
-}
+  if (argc != 2) {
+    std::cerr << "Usage: ./code <diff> "<<endl;
+    return 1;
+  }
 #endif
 
-    cout<<BLUE<<"================================="<<endl;
-    cout<<"TSL challenge"<<endl;
-    cout<<"================================="<<RESET<<endl;
-    time_t start_all;
-    time(&start_all);
-    cout<<YELLOW<<"Starting at "<<ctime(&start_all)<<RESET<<endl;
+  time_t time_all;
+  time(&time_all);
+  cout<<endl;
+  cout<<YELLOW<<"Starting at "<<ctime(&time_all)<<RESET<<endl;
+
+  cout<<BLUE<<"================================="<<endl;
+  cout<<"TSL challenge"<<endl;
+  cout<<"================================="<<RESET<<endl;
+
+  auto start_all = chrono::high_resolution_clock::now();
+
 #ifdef TIME_OUT
   cout<<YELLOW<<"Timeout set to "<<TIME_WINDOW<<" secs "<<RESET<<endl;
 #endif
-   cout<<endl;
+  cout<<endl;
 
-    //----------------
-/*
-    ULONG NSTEPS=5000000;
-//    std::vector<std::string> batch_inputs(NSTEPS, "aaaaa");
-//    auto hashes = sha256_batch_hex(batch_inputs);
-    for (ULONG i=0;i<NSTEPS;++i)
-      test_function();
+#ifdef BENCHMARK
+  test_hash();
+  test_random();
+  test_solve_pow_b(0);
+  test_solve_pow_b(1);
+  exit(1);
+#endif
 
-
-    time_t end_allt;
-    time(&end_allt);
-    cout<<YELLOW<<NSTEPS<<" done in "<<difftime(end_allt,start_all)<<" seconds"<<RESET<<endl;
-    exit(1);
-  */
- 
-//---------------------
-    #ifndef TEST_POW
+#ifndef TEST_POW
     string host = argv[1];
     int port = std::stoi(argv[2]);
     string pem = argv[3];
@@ -513,7 +630,6 @@ if (argc != 2) {
     int nProcessors = omp_get_max_threads();
     cout<<CYAN<<"Using OpenMP with "<<nProcessors<<" processors for POW"<<RESET<<endl;
     omp_set_num_threads(nProcessors);
-    atomic<bool> solution_found(false); // Use thread-safe information
 #endif
 
   int counter_ind=0;
@@ -561,14 +677,14 @@ if (argc != 2) {
             string authdata="zhLjlDmDPamQVpQZlWZilpBvWEHKFApzkQwDsFnpAWBdrxvstzcOFcAxnQUITpZF";
 #endif
             string pads = pad(diff,input_char);           
-            time_t time_out;
-            time(&time_out);
 //            string sol=solve_pow(pads,authdata,solution_found, counter_ind);
-            string sol=solve_pow_b(pads,authdata,solution_found,time_out, signal_out);
+            string sol=solve_pow_batched(pads,authdata,signal_out, diff);
             dec=false;
+#ifdef TIME_OUT
             if(true==signal_out)
               break;
-            
+#endif
+           
 #ifndef TEST_POW
             SSL_write(ssl, sol.c_str(), sol.size());
 #endif
@@ -639,8 +755,8 @@ if (argc != 2) {
         }
 #endif        
     }
-    time_t end_all;
-    time(&end_all);
+
+    auto end_all = chrono::high_resolution_clock::now();
 
 #ifndef TEST_POW
     // Cleanup
@@ -651,17 +767,18 @@ if (argc != 2) {
     cleanup_openssl();
     cout << "Connection closed."<< endl;
 #endif        
+cout<<endl;
 
 #ifdef TIME_OUT
-if(false==signal_out)
+  if(false==signal_out)
 #endif
-  cout<<YELLOW<<"Solution found in "<<difftime(end_all,start_all)<<" seconds"<<RESET<<endl;
+  cout<<YELLOW<<"Solution found in "<<chrono::duration<double>(end_all-start_all).count()<<" seconds"<<RESET<<endl;
   #ifdef TIME_OUT
   else
-      cout<<RED<<"TIME OUT!. Solution not found in allowed time lapse (" <<TIME_WINDOW<<" s). Try to decrease difficulty or increase time window."<<RESET<<endl;
-      #endif
-
-      return 0;
+    cout<<RED<<"TIME OUT!. Solution not found in allowed time lapse (" <<TIME_WINDOW<<" s). Try to decrease difficulty or increase time window."<<RESET<<endl;
+#endif
+  cout<<endl;
+  return 0;
 }
 
 
