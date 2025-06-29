@@ -9,12 +9,14 @@
  *  @authors Andrés Balaguera-Antolinez 2025
  */
  // ********************************************
-#include "/home/balaguera/Challenge/nchallenge.hpp"
-
+ #include "/home/balaguera/Challenge/nchallenge.hpp"
+ #include "/home/balaguera/Challenge/ssl.hpp"
+ 
 
 
 // **************************************************************************
 // **************************************************************************
+#ifdef BENCHMARK
 void test_random() // Test differnet GSL random number generators applied to random strings
 {
     cout<<GREEN<<"TESTING RANDOM"<<RESET<<endl;
@@ -85,7 +87,7 @@ void test_hash(){
  diffe=static_cast<float>(STEPS_TEST)/difftime(end_allt,start_1);
  cout<<YELLOW<<"sha256_batch_hex done in "<<difftime(end_allt,start_1)<<" seconds. "<<diffe<<"  hash/secs "<<RESET<<endl;
 }
-
+#endif
 
 // **************************************************************************
 // **************************************************************************
@@ -146,6 +148,7 @@ string solve_pow(string &pads, string &authdata, atomic<bool>&solution_found, in
 }
 
 // **************************************************************************
+#ifdef BENCHMARK
 void test_solve_pow_b(bool select) // Bench the combnation of random and hash
 {
 
@@ -185,12 +188,21 @@ void test_solve_pow_b(bool select) // Bench the combnation of random and hash
   if(select)cout<<YELLOW<<__PRETTY_FUNCTION__<<" sha1_hex done in "<<difftime(end_allt,start_1)<<" seconds. "<<diffe<<"  operations/secs "<<RESET<<endl;
   else cout<<YELLOW<<__PRETTY_FUNCTION__<<" sha256_batch_hex done in "<<difftime(end_allt,start_1)<<" seconds. "<<diffe<<"  operations/secs "<<RESET<<endl;
 }
-
+#endif
 // **************************************************************************
 // **************************************************************************
+//soluciones escritas entre commillas
 // **************************************************************************
-// "é);;Fb%a7B1m" es solución para diff=9 en 3.40878 secs
+// "é);;Fb%a7B1m" solución para diff=9 en 3.40878 secs
 // checksum = 0000000003b446c903323f9632267c80d34e8759
+// **************************************************************************
+
+// "6ùmIRb_áLcJl" solución para diff=9 en 1005.01 secs
+// 0000000009348d9247703001599ac04c9dfbf66e
+
+// "A6L6+cC-p!wì"  en 3153.33 seconds 
+// Checksum: 000000000279815da57fcb34e69427dbf8591fed
+
 // **************************************************************************
 string solve_pow_batched(string &pads, string &authdata, bool &signal, int difficulty)
 {
@@ -214,7 +226,7 @@ string solve_pow_batched(string &pads, string &authdata, bool &signal, int diffi
     vector<std::string> suffix(BATCH_SIZE);
     vector<std::string> hashes(BATCH_SIZE);
  
-#ifdef NEW_SEED
+#if defined NEW_SEED || defined USE_SOLUTION
 new_seed:
   auto start_time_new_seed = chrono::high_resolution_clock::now();
 #endif
@@ -231,16 +243,31 @@ new_seed:
       }
 #endif    
 
-#ifdef NEW_SEED
+#if defined NEW_SEED  || defined USE_SOLUTION
       auto end_time_new_seed = chrono::high_resolution_clock::now();
+#endif    
+
+#ifdef NEW_SEED
       if(chrono::duration<double>(end_time_new_seed-start_time_new_seed).count()>=TIME_WINDOW_NEW_SEED){
         if(jthread==0)cout<<GREEN<<"Chosing new seed"<<RESET<<endl;
         goto new_seed;
       }
-#endif    
+#endif
+
 
       for (int i = 0; i < BATCH_SIZE; ++i) // Allocate the ranodmd chains
-        suffix[i] = random_string(gBaseRand);
+      suffix[i] = random_string(gBaseRand);
+
+#ifdef USE_SOLUTION
+    if(chrono::duration<double>(end_time_new_seed-start_time_new_seed).count()>=NEW_SOLUTION_TIME)
+    {
+      if(jthread==0)cout<<GREEN<<"Fixing solution"<<RESET<<endl;
+      int sel=gsl_rng_uniform_int(gBaseRand, solutions.size());
+      for (int i = 0; i < BATCH_SIZE; ++i) // Allocate the ranodmd chains
+        suffix[i] =solutions[sel];
+    }
+#endif    
+
 
 //vector<std::string> inputs(BATCH_SIZE);
 //for (int i = 0; i < BATCH_SIZE; ++i)  // Allocate random plus autdata
@@ -261,7 +288,6 @@ new_seed:
           cout << "Thread " << jthread << " testing: " << suffix[i] << " → " << hashes[i].substr(0, 12) << "\n";
       }
 #endif       
-
       if(hashes[i].starts_with(pads)) {// Check if the checksum has enough (i.e 9 in this case) leading zeros.Uses C++20 standard library function 
         bool expected=false;
         if(solution_found.compare_exchange_strong(expected,true,std::memory_order_acq_rel)){
@@ -326,6 +352,11 @@ int main(int argc, char** argv) {
 #ifdef NEW_SEED
   cout<<YELLOW<<"New seed is chosen after "<<TIME_WINDOW_NEW_SEED<<" secs "<<RESET<<endl;
 #endif
+
+#ifdef USE_SOLUTION
+  cout<<YELLOW<<"Solution chosen from previus minig after "<<NEW_SOLUTION_TIME<<" secs "<<RESET<<endl;
+#endif
+
 
   cout<<endl;
 
