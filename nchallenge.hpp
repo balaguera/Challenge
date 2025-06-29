@@ -135,8 +135,9 @@ constexpr int TIME_WINDOW = 7200; // Two hours
 #ifdef NEW_SEED
 /**
  * @brief Time window allowed for the process (mainly POW), in secs before chosing a new seed
+ * @details Using a new seed won´t help much if the initial seeds are well distirbuted.
 */
-constexpr int TIME_WINDOW_NEW_SEED = 60; //  
+constexpr int TIME_WINDOW_NEW_SEED = 180; //  
 #endif
 // **************************************************************************
 /**
