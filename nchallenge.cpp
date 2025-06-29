@@ -189,7 +189,8 @@ void test_solve_pow_b(bool select) // Bench the combnation of random and hash
 // **************************************************************************
 // **************************************************************************
 // **************************************************************************
-// "é);;Fb%a7B1m" estevio la luz una vez con diff=9 en 3.40878 secs
+// "é);;Fb%a7B1m" es solución para diff=9 en 3.40878 secs
+// checksum = 0000000003b446c903323f9632267c80d34e8759
 // **************************************************************************
 string solve_pow_batched(string &pads, string &authdata, bool &signal, int difficulty)
 {
@@ -239,15 +240,15 @@ new_seed:
 #endif    
 
       for (int i = 0; i < BATCH_SIZE; ++i) // Allocate the ranodmd chains
-       suffix[i] = random_string(gBaseRand);
+        suffix[i] = random_string(gBaseRand);
 
- //   vector<std::string> inputs(BATCH_SIZE);
-//      for (int i = 0; i < BATCH_SIZE; ++i)  // Allocate random plus autdata
-//        inputs[i] = suffix[i] + authdata;
-// if sha256_batch_hex is parallelized (see above), 
-// we run into problems for we are are already in a parallel section. So better use sha1_hex directly 
-// in which case we can avoid the use of input[]
-//     sha256_batch_hex(inputs, hashes); 
+//vector<std::string> inputs(BATCH_SIZE);
+//for (int i = 0; i < BATCH_SIZE; ++i)  // Allocate random plus autdata
+// inputs[i] = suffix[i] + authdata;
+//if sha256_batch_hex is parallelized (see above), 
+//we run into problems for we are are already in a parallel section. So better use sha1_hex directly 
+//in which case we can avoid the use of input[]
+//sha256_batch_hex(inputs, hashes); 
 
       for (int i = 0; i < BATCH_SIZE ; ++i) // ALlocate hashes
         hashes[i] = sha1_hex(suffix[i] + authdata);
@@ -255,28 +256,28 @@ new_seed:
       bool local_found = false;
       for (int i = 0; i < BATCH_SIZE && !local_found; ++i) {
 #ifdef DEBUG
-      static thread_local int debug_counter = 0;
-      if (++debug_counter % 100 == 0) {
+        static thread_local int debug_counter = 0;
+        if (++debug_counter % 100 == 0) {
           cout << "Thread " << jthread << " testing: " << suffix[i] << " → " << hashes[i].substr(0, 12) << "\n";
       }
-
 #endif       
-        if(hashes[i].starts_with(pads)) {// Check if the checksum has enough (i.e 9 in this case) leading zeros.Uses C++20 standard library function 
-          bool expected=false;
-          if(solution_found.compare_exchange_strong(expected,true,std::memory_order_acq_rel)){
+
+      if(hashes[i].starts_with(pads)) {// Check if the checksum has enough (i.e 9 in this case) leading zeros.Uses C++20 standard library function 
+        bool expected=false;
+        if(solution_found.compare_exchange_strong(expected,true,std::memory_order_acq_rel)){
 #pragma omp critical
-            {
-              solution=suffix[i];
-              cout<<endl;
-              cout << CYAN << "POW solution found by thread " << jthread <<endl;
-              cout<<"Suffix: " << suffix[i]<<endl;
-              cout<<"Checksum: " << hashes[i] << RESET << endl;
-            }
-            local_found = true; // prevent duplicate prints
+          {
+            solution=suffix[i];
+            cout<<endl;
+            cout << CYAN << "POW solution found by thread " << jthread <<endl;
+            cout<<"Suffix: " << suffix[i]<<endl;
+            cout<<"Checksum: " << hashes[i] << RESET << endl;
           }
-        } 
-      }
+          local_found = true; // prevent duplicate prints
+        }
+      } 
     }
+  }
   gsl_rng_free(gBaseRand);
 #ifdef USE_OMP
 } 
