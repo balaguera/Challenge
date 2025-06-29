@@ -55,8 +55,8 @@ using namespace chrono;
 
 #define USE_OMP  // Define to use OMP
 #define TEST_POW // To test POW
-//#define TIME_OUT // To stop code after a give time_window
-#define NEW_SEED
+#define TIME_OUT // To stop code after a give time_window
+//#define NEW_SEED // To get new seeds after a time  TIME_WINDOW_NEW_SEED
 #undef  BENCHMARK
 #define _USE_COLORS_
 //#define DEBUG
@@ -158,6 +158,10 @@ const vector<string> ALPHA = {
   "[","]","{","}",";",":","'",",","<",".",">","/","?",
   "á","é","í","ó","ú","ñ","ç","à","è","ì","ò","ù"
 };
+
+// **************************************************************************
+const vector<string> solutions= {"é);;Fb%a7B1m", "6ùmIRb_áLcJl", "A6L6+cC-p!wì"};
+
 // **************************************************************************
 string random_string(gsl_rng *gBaseRand) {
   int isize = ALPHA.size();
