@@ -81,7 +81,7 @@ using namespace chrono;
 */
 //#define  BENCHMARK
 // ********************************************
-//#define USE_SIMD
+#define USE_SIMD
 
 
 // ********************************************
@@ -183,7 +183,7 @@ constexpr int NEW_SOLUTION_TIME = 20; //
 /**
  * @brief Number of calculatios to copmpare hases and random geenerator
 */
-constexpr int STEPS_TEST = 50000; 
+constexpr int STEPS_TEST = 500000; 
 #endif
 // **************************************************************************
 /**

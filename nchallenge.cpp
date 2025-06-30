@@ -107,6 +107,14 @@ void test_hash(){
  diff =static_cast<double>(STEPS_TEST)/difft/1000000.0;
  cout<<YELLOW<<"sha1_batch_hex_n done in "<<difft<<" sec, "<<diff<<"  M-hash/sec "<<RESET<<endl;
 
+ start_time = chrono::high_resolution_clock::now();
+ sha1_simd_batch(batch_inputs, hashes);
+ end_time = chrono::high_resolution_clock::now();
+ difft=chrono::duration<double>(end_time-start_time).count();
+ diff =static_cast<double>(STEPS_TEST)/difft/1000000.0;
+ cout<<YELLOW<<"sha1_simd_batch done in "<<difft<<" sec, "<<diff<<"  M-hash/sec "<<RESET<<endl;
+
+
 }
 #endif
 
@@ -187,18 +195,21 @@ void test_solve_pow_b(int select, int bash_size) // Bench the combnation of rand
     cout<<"Using sha1_hex"<<endl;
     for(ULONG i=0;i<STEPS_TEST;++i){
       for (int i = 0; i < bash_size; ++i)
-        suffix[i] = random_string(gBaseRand);
+      suffix[i] =  "asc";//random_string(gBaseRand);
       for (int i = 0; i < bash_size; ++i) 
         hashes[i] = sha1_hex(suffix[i] + authdata);
+        //cout<<suffix[0]+authdata<<"  "<<hashes[0]<<endl;
      }
     }
     else if(1==select){
       cout<<"Using sha1_hex_n"<<endl;
       for(ULONG i=0;i<STEPS_TEST;++i){
        for (int i = 0; i < bash_size; ++i)
-          suffix[i] = random_string(gBaseRand);
+       suffix[i] =  "asc";//random_string(gBaseRand);
+//       suffix[i] = random_string(gBaseRand);
        for (int i = 0; i < bash_size; ++i) 
         hashes[i] = sha1_hex_n(suffix[i] + authdata);
+      //  cout<<suffix[0]+authdata<<"  "<<hashes[0]<<endl;
       }
     }
     else if(2==select){
@@ -206,10 +217,11 @@ void test_solve_pow_b(int select, int bash_size) // Bench the combnation of rand
       vector<std::string> inputs(bash_size);
       for(ULONG i=0;i<STEPS_TEST;++i){
         for (int i = 0; i < bash_size; ++i)
-          suffix[i] = random_string(gBaseRand);
+          suffix[i] =  "asc";//random_string(gBaseRand);
         for (int i = 0; i < bash_size; ++i) 
           inputs[i] = suffix[i] + authdata;
         sha256_batch_hex(inputs, hashes);
+    //   cout<<inputs[0]<<"  "<<hashes[0]<<endl;
       }
     }
     else if(3==select){
@@ -217,33 +229,29 @@ void test_solve_pow_b(int select, int bash_size) // Bench the combnation of rand
       vector<std::string> inputs(bash_size);
       for(ULONG i=0;i<STEPS_TEST;++i){
         for (int i = 0; i < bash_size; ++i)
-          suffix[i] = random_string(gBaseRand);
+          suffix[i] =  "asc";//random_string(gBaseRand);
         for (int i = 0; i < bash_size; ++i) 
           inputs[i] = suffix[i] + authdata;
         sha1_batch_hex_n(inputs, hashes);
+  //     cout<<inputs[0]<<"  "<<hashes[0]<<endl;
       }
     }
-#ifdef USE_SIMD
+
     else if(4==select){
       cout<<"Using sha1_simd_batch"<<endl;
       vector<std::string> inputs(bash_size);
       for(ULONG i=0;i<STEPS_TEST;++i){
         for (int i = 0; i < bash_size; ++i)
-          suffix[i] = random_string(gBaseRand);
+          suffix[i] = "asc";//random_string(gBaseRand);
         for (int i = 0; i < bash_size; ++i) 
           inputs[i] = suffix[i] + authdata;
         sha1_simd_batch(inputs, hashes);
-        for (int i = 0; i < bash_size; ++i) 
-        cout<<i<<"  "<<hashes[i]<<endl;
+//        cout<<inputs[0]<<"  "<<hashes[0]<<endl;
       }
     }
-#endif
-
-
 
   gsl_rng_free(gBaseRand);
 
- 
  
   auto end_time = chrono::high_resolution_clock::now();
   double difft=chrono::duration<double>(end_time-start_time).count();
@@ -314,7 +322,7 @@ new_seed:
 #endif    
     vector<string> inputs(BATCH_SIZE);
     for (int i = 0; i < BATCH_SIZE; ++i)  // Allocate random plus autdata
-      inputs[i] =  authdata+ suffix[i] ; // THis order is important. FIrst authdata
+      inputs[i] =  authdata + suffix[i] ; // THhs order is important. First authdata
 
 #ifdef USE_SIMD
       sha1_simd_batch(inputs, hashes);
@@ -405,13 +413,11 @@ int main(int argc, char** argv) {
 #ifdef BENCHMARK
   test_hash();
   test_random();
-  test_solve_pow_b(0,32);
-  test_solve_pow_b(1,32);
-  test_solve_pow_b(2,32);
-  test_solve_pow_b(3,32);
-#ifdef USE_SIMD
-  test_solve_pow_b(4,32);
-#endif
+  test_solve_pow_b(0,16);
+  test_solve_pow_b(1,16);
+  test_solve_pow_b(2,16);
+  test_solve_pow_b(3,16);
+  test_solve_pow_b(4,16);
   exit(1);
 #endif
 
