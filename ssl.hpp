@@ -4,7 +4,10 @@
  *  @authors Andrés Balaguera-Antolinez 2025
  */
  // ********************************************
-
+#include <thread>
+extern "C" {
+  #include <isa-l.h>
+}
 
 
 // **************************************************************************
@@ -84,3 +87,13 @@ void sha256_batch_hex(const vector<string>& inputs, vector<string>& outputs) {
       outputs[i] = sha256_hex(inputs[i]);
   }
 }
+// **************************************************************************
+void sha1_batch_hex_n(const vector<string>& inputs, vector<string>& outputs) {
+  //#pragma omp parallel for
+    for (size_t i = 0; i < inputs.size(); ++i) {
+        outputs[i] = sha1_hex_n(inputs[i]);
+    }
+
+  }
+
+

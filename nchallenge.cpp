@@ -11,7 +11,6 @@
  // ********************************************
  #include "/home/balaguera/Challenge/nchallenge.hpp"
  #include "/home/balaguera/Challenge/ssl.hpp"
- 
 
 
 // **************************************************************************
@@ -19,6 +18,7 @@
 #ifdef BENCHMARK
 void test_random() // Test differnet GSL random number generators applied to random strings
 {
+    cout<<endl;
     cout<<GREEN<<"TESTING RANDOM"<<RESET<<endl;
     int jthread=1;//omp_get_thread_num();
     ULONG seed = get_seed(jthread,1);    // If in debug mode (available under TEST_POW), all threads share the same seed, hence solution is always the same found by the same thread
@@ -28,64 +28,85 @@ void test_random() // Test differnet GSL random number generators applied to ran
     time_t start_1; 
     time_t end_allt;
 
-    time(&start_1);
+    auto start_time = chrono::high_resolution_clock::now();
     for(ULONG i=0;i<STEPS_TEST;++i)
       string suffix=random_string(gBaseRand); //Short random string, server accepts all utf-8 characters:
-    time(&end_allt);
-    float diffe=static_cast<float>(STEPS_TEST)/difftime(end_allt,start_1);
-    cout<<YELLOW<<"gsl_rng_mt19937 done in "<<difftime(end_allt,start_1)<<" seconds. "<<diffe<<" rans/secs "<<RESET<<endl;
+    auto end_time = chrono::high_resolution_clock::now();
+    double difft=chrono::duration<double>(end_time-start_time).count();
+    double diff =static_cast<float>(STEPS_TEST)/difft/1000000.;
+    cout<<YELLOW<<"gsl_rng_mt19937 done in "<<difft<<" sec, "<<diff<<"  M-r/sec "<<RESET<<endl;
     gsl_rng_free(gBaseRand);
 
     gBaseRand =gsl_rng_alloc(gsl_rng_ranlxs0);
     gsl_rng_set (gBaseRand, seed);
-    time(&start_1);
+    start_time = chrono::high_resolution_clock::now();
     for(ULONG i=0;i<STEPS_TEST;++i)
       string suffix=random_string(gBaseRand); //Short random string, server accepts all utf-8 characters:
-    time(&end_allt);
-    diffe=static_cast<float>(STEPS_TEST)/difftime(end_allt,start_1);
-    cout<<YELLOW<<"gsl_rng_ranlxs0 done in "<<difftime(end_allt,start_1)<<" seconds. "<<diffe<<" rans/secs "<<RESET<<endl;
+    end_time = chrono::high_resolution_clock::now();
+    difft=chrono::duration<double>(end_time-start_time).count();
+    diff =static_cast<float>(STEPS_TEST)/difft/1000000.;
+    cout<<YELLOW<<"gsl_rng_ranlxs0 done in "<<difft<<" sec, "<<diff<<" M-r/sec "<<RESET<<endl;
     gsl_rng_free(gBaseRand);
 
     gBaseRand =gsl_rng_alloc(gsl_rng_ranlux);
     gsl_rng_set (gBaseRand, seed);
-    time(&start_1);
+    start_time = chrono::high_resolution_clock::now();
     for(ULONG i=0;i<STEPS_TEST;++i)
       string suffix=random_string(gBaseRand); //Short random string, server accepts all utf-8 characters:
-    time(&end_allt);
-    diffe=static_cast<float>(STEPS_TEST)/difftime(end_allt,start_1);
-    cout<<YELLOW<<"gsl_rng_ranlux done in "<<difftime(end_allt,start_1)<<" seconds. "<<diffe<<" rans/secs "<<RESET<<endl;
+    end_time = chrono::high_resolution_clock::now();    
+    difft=chrono::duration<double>(end_time-start_time).count();
+    diff =static_cast<float>(STEPS_TEST)/difft/1000000.;
+    cout<<YELLOW<<"gsl_rng_ranux done in "<<difft<<" sec, "<<diff<<" M-r/sec "<<RESET<<endl;
     gsl_rng_free(gBaseRand);
   }
 
 // **************************************************************************
 void test_hash(){
-
+  cout<<endl;
  cout<<GREEN<<"TESTING HASH"<<RESET<<endl;
  vector<string> batch_inputs(STEPS_TEST, "51sdas6sdefs3aaaaa");
  vector<string> hashes(STEPS_TEST);
+ auto start_time = chrono::high_resolution_clock::now();
 
- time_t start_1; 
- time_t end_allt;
-
- time(&start_1);
  for(ULONG i=0;i<STEPS_TEST;++i)
     string ss=sha1_hex(batch_inputs[i]);
- time(&end_allt);
- float diffe=static_cast<float>(STEPS_TEST)/difftime(end_allt,start_1);
- cout<<YELLOW<<"sha1_hex done in "<<difftime(end_allt,start_1)<<" seconds. "<<diffe<<"  hash/secs "<<RESET<<endl;
+ auto end_time = chrono::high_resolution_clock::now();
+ double difft=chrono::duration<double>(end_time-start_time).count();
+ double diff =static_cast<float>(STEPS_TEST)/difft/1000000.0;
+ cout<<YELLOW<<"sha1_hex done in "<<difft<<" sec, "<<diff<<"  M-hash/sec "<<RESET<<endl;
 
- time(&start_1);
+ start_time = chrono::high_resolution_clock::now();
  for(ULONG i=0;i<STEPS_TEST;++i)
     string ss=sha1_hex_n(batch_inputs[i]);
- time(&end_allt);
- diffe=static_cast<float>(STEPS_TEST)/difftime(end_allt,start_1);
- cout<<YELLOW<<"sha1_hex_n done in "<<difftime(end_allt,start_1)<<" seconds. "<<diffe<<"  hash/secs "<<RESET<<endl;
+ end_time = chrono::high_resolution_clock::now();
+ difft=chrono::duration<double>(end_time-start_time).count();
+ diff =static_cast<float>(STEPS_TEST)/difft/1000000.0;
+ cout<<YELLOW<<"sha1_hex_n done in "<<difft<<" sec, "<<diff<<"  M-hash/sec "<<RESET<<endl;
 
- time(&start_1);
+ start_time = chrono::high_resolution_clock::now();
+ for(ULONG i=0;i<STEPS_TEST;++i)
+    string ss=sha256_hex(batch_inputs[i]);
+ end_time = chrono::high_resolution_clock::now();
+ difft=chrono::duration<double>(end_time-start_time).count();
+ diff =static_cast<float>(STEPS_TEST)/difft/1000000.0;
+ cout<<YELLOW<<"sha256_hex done in "<<difft<<" sec, "<<diff<<"  M-hash/sec "<<RESET<<endl;
+
+
+ start_time = chrono::high_resolution_clock::now();
  sha256_batch_hex(batch_inputs, hashes);
- time(&end_allt);
- diffe=static_cast<float>(STEPS_TEST)/difftime(end_allt,start_1);
- cout<<YELLOW<<"sha256_batch_hex done in "<<difftime(end_allt,start_1)<<" seconds. "<<diffe<<"  hash/secs "<<RESET<<endl;
+ end_time = chrono::high_resolution_clock::now();
+ difft=chrono::duration<double>(end_time-start_time).count();
+ diff =static_cast<float>(STEPS_TEST)/difft/1000000.0;
+ cout<<YELLOW<<"sha256_batch_hex done in "<<difft<<" sec, "<<diff<<"  M-hash/sec "<<RESET<<endl;
+
+
+ start_time = chrono::high_resolution_clock::now();
+ sha1_batch_hex_n(batch_inputs, hashes);
+ end_time = chrono::high_resolution_clock::now();
+ difft=chrono::duration<double>(end_time-start_time).count();
+ diff =static_cast<double>(STEPS_TEST)/difft/1000000.0;
+ cout<<YELLOW<<"sha1_batch_hex_n done in "<<difft<<" sec, "<<diff<<"  M-hash/sec "<<RESET<<endl;
+
 }
 #endif
 
@@ -149,62 +170,89 @@ string solve_pow(string &pads, string &authdata, atomic<bool>&solution_found, in
 
 // **************************************************************************
 #ifdef BENCHMARK
-void test_solve_pow_b(bool select) // Bench the combnation of random and hash
+void test_solve_pow_b(int select, int bash_size) // Bench the combnation of random and hash
 {
-
-  cout<<GREEN<<"TESTING SOLVE_POW"<<RESET<<endl;
-  time_t start_1; 
-  time(&start_1);
+  cout<<endl;
+  cout<<GREEN<<"TESTING "<<__PRETTY_FUNCTION__<<" with "<<bash_size<<" as bash_size"<< RESET<<endl;
+  auto start_time = chrono::high_resolution_clock::now();
  
    int jthread=0;//omp_get_thread_num();
    gsl_rng *gBaseRand =gsl_rng_alloc(gsl_rng_mt19937); 
    gsl_rng_set (gBaseRand, get_seed(jthread,1));
    string authdata="lkk5sdf14313fg12fdg31";// some test
-   vector<std::string> suffix(BATCH_SIZE);
-   vector<std::string> hashes(BATCH_SIZE);
-   if(select)
+   vector<std::string> suffix(bash_size);
+   vector<std::string> hashes(bash_size);
+   if(0==select)
    {
+    cout<<"Using sha1_hex"<<endl;
     for(ULONG i=0;i<STEPS_TEST;++i){
-      for (int i = 0; i < BATCH_SIZE; ++i)
+      for (int i = 0; i < bash_size; ++i)
         suffix[i] = random_string(gBaseRand);
-      for (int i = 0; i < BATCH_SIZE; ++i) 
+      for (int i = 0; i < bash_size; ++i) 
         hashes[i] = sha1_hex(suffix[i] + authdata);
      }
     }
-    else {
-      vector<std::string> inputs(BATCH_SIZE);
+    else if(1==select){
+      cout<<"Using sha1_hex_n"<<endl;
       for(ULONG i=0;i<STEPS_TEST;++i){
-        for (int i = 0; i < BATCH_SIZE; ++i)
+       for (int i = 0; i < bash_size; ++i)
           suffix[i] = random_string(gBaseRand);
-        for (int i = 0; i < BATCH_SIZE; ++i) 
+       for (int i = 0; i < bash_size; ++i) 
+        hashes[i] = sha1_hex_n(suffix[i] + authdata);
+      }
+    }
+    else if(2==select){
+      cout<<"Using sha256_batch_hex"<<endl;
+      vector<std::string> inputs(bash_size);
+      for(ULONG i=0;i<STEPS_TEST;++i){
+        for (int i = 0; i < bash_size; ++i)
+          suffix[i] = random_string(gBaseRand);
+        for (int i = 0; i < bash_size; ++i) 
           inputs[i] = suffix[i] + authdata;
         sha256_batch_hex(inputs, hashes);
       }
     }
+    else if(3==select){
+      cout<<"Using sha1_batch_hex"<<endl;
+      vector<std::string> inputs(bash_size);
+      for(ULONG i=0;i<STEPS_TEST;++i){
+        for (int i = 0; i < bash_size; ++i)
+          suffix[i] = random_string(gBaseRand);
+        for (int i = 0; i < bash_size; ++i) 
+          inputs[i] = suffix[i] + authdata;
+        sha1_batch_hex_n(inputs, hashes);
+      }
+    }
+#ifdef USE_SIMD
+    else if(4==select){
+      cout<<"Using sha1_simd_batch"<<endl;
+      vector<std::string> inputs(bash_size);
+      for(ULONG i=0;i<STEPS_TEST;++i){
+        for (int i = 0; i < bash_size; ++i)
+          suffix[i] = random_string(gBaseRand);
+        for (int i = 0; i < bash_size; ++i) 
+          inputs[i] = suffix[i] + authdata;
+        sha1_simd_batch(inputs, hashes);
+        for (int i = 0; i < bash_size; ++i) 
+        cout<<i<<"  "<<hashes[i]<<endl;
+      }
+    }
+#endif
+
+
+
   gsl_rng_free(gBaseRand);
-   time_t end_allt;
-  time(&end_allt);
-  float diffe=static_cast<float>(STEPS_TEST)/difftime(end_allt,start_1);
-  if(select)cout<<YELLOW<<__PRETTY_FUNCTION__<<" sha1_hex done in "<<difftime(end_allt,start_1)<<" seconds. "<<diffe<<"  operations/secs "<<RESET<<endl;
-  else cout<<YELLOW<<__PRETTY_FUNCTION__<<" sha256_batch_hex done in "<<difftime(end_allt,start_1)<<" seconds. "<<diffe<<"  operations/secs "<<RESET<<endl;
+
+ 
+ 
+  auto end_time = chrono::high_resolution_clock::now();
+  double difft=chrono::duration<double>(end_time-start_time).count();
+  double diffe=static_cast<double>(STEPS_TEST)/difft/1000000.0;
+  cout<<YELLOW<<__PRETTY_FUNCTION__<<diffe<<"  M-operations/secs "<<RESET<<endl;
 }
 #endif
 // **************************************************************************
-// **************************************************************************
-//soluciones escritas entre commillas
-// **************************************************************************
-// "é);;Fb%a7B1m" solución para diff=9 en 3.40878 secs
-// checksum = 0000000003b446c903323f9632267c80d34e8759
-// **************************************************************************
-
-// "6ùmIRb_áLcJl" solución para diff=9 en 1005.01 secs
-// 0000000009348d9247703001599ac04c9dfbf66e
-
-// "A6L6+cC-p!wì"  en 3153.33 seconds 
-// Checksum: 000000000279815da57fcb34e69427dbf8591fed
-
-// **************************************************************************
-string solve_pow_batched(string &pads, string &authdata, bool &signal, int difficulty)
+string solve_pow_batch(string &pads, string &authdata, bool &signal, int difficulty)
 {
   string solution;
   atomic<bool> solution_found(false); // Use thread-safe information
@@ -212,7 +260,6 @@ string solve_pow_batched(string &pads, string &authdata, bool &signal, int diffi
 #ifdef TIME_OUT
   auto start_time = chrono::high_resolution_clock::now();
 #endif    
-
 
 #ifdef USE_OMP
 #pragma omp parallel shared(solution_found) 
@@ -232,7 +279,6 @@ new_seed:
 #endif
    gsl_rng_set (gBaseRand, get_seed(jthread, difficulty));
 
-
     while (!solution_found.load(std::memory_order_acquire)){
 
 #ifdef TIME_OUT
@@ -242,11 +288,9 @@ new_seed:
         break;
       }
 #endif    
-
 #if defined NEW_SEED  || defined USE_SOLUTION
       auto end_time_new_seed = chrono::high_resolution_clock::now();
 #endif    
-
 #ifdef NEW_SEED
       if(chrono::duration<double>(end_time_new_seed-start_time_new_seed).count()>=TIME_WINDOW_NEW_SEED){
         if(jthread==0)cout<<GREEN<<"Chosing new seed"<<RESET<<endl;
@@ -254,31 +298,29 @@ new_seed:
       }
 #endif
 
-
-      for (int i = 0; i < BATCH_SIZE; ++i) // Allocate the ranodmd chains
-      suffix[i] = random_string(gBaseRand);
+  for (int i = 0; i < BATCH_SIZE; ++i) // Allocate the ranodmd chains
+        suffix[i] = random_string(gBaseRand);
 
 #ifdef USE_SOLUTION
     if(chrono::duration<double>(end_time_new_seed-start_time_new_seed).count()>=NEW_SOLUTION_TIME)
     {
+#ifdef DEBUG
       if(jthread==0)cout<<GREEN<<"Fixing solution"<<RESET<<endl;
+#endif
       int sel=gsl_rng_uniform_int(gBaseRand, solutions.size());
       for (int i = 0; i < BATCH_SIZE; ++i) // Allocate the ranodmd chains
         suffix[i] =solutions[sel];
     }
 #endif    
+    vector<string> inputs(BATCH_SIZE);
+    for (int i = 0; i < BATCH_SIZE; ++i)  // Allocate random plus autdata
+      inputs[i] =  authdata+ suffix[i] ; // THis order is important. FIrst authdata
 
-
-//vector<std::string> inputs(BATCH_SIZE);
-//for (int i = 0; i < BATCH_SIZE; ++i)  // Allocate random plus autdata
-// inputs[i] = suffix[i] + authdata;
-//if sha256_batch_hex is parallelized (see above), 
-//we run into problems for we are are already in a parallel section. So better use sha1_hex directly 
-//in which case we can avoid the use of input[]
-//sha256_batch_hex(inputs, hashes); 
-
-      for (int i = 0; i < BATCH_SIZE ; ++i) // ALlocate hashes
-        hashes[i] = sha1_hex(suffix[i] + authdata);
+#ifdef USE_SIMD
+      sha1_simd_batch(inputs, hashes);
+#else
+      sha1_batch_hex_n(inputs, hashes); 
+#endif
 
       bool local_found = false;
       for (int i = 0; i < BATCH_SIZE && !local_found; ++i) {
@@ -294,10 +336,12 @@ new_seed:
 #pragma omp critical
           {
             solution=suffix[i];
+#ifdef DEBUG
             cout<<endl;
             cout << CYAN << "POW solution found by thread " << jthread <<endl;
             cout<<"Suffix: " << suffix[i]<<endl;
             cout<<"Checksum: " << hashes[i] << RESET << endl;
+#endif
           }
           local_found = true; // prevent duplicate prints
         }
@@ -312,13 +356,11 @@ new_seed:
 return solution;
 }
 
+// **************************************************************************
+// **************************************************************************
+// **************************************************************************
+// **************************************************************************
 
-// **************************************************************************
-// **************************************************************************
-// **************************************************************************
-// **************************************************************************
-// **************************************************************************
-// **************************************************************************
 
 int main(int argc, char** argv) {
  
@@ -363,8 +405,13 @@ int main(int argc, char** argv) {
 #ifdef BENCHMARK
   test_hash();
   test_random();
-  test_solve_pow_b(0);
-  test_solve_pow_b(1);
+  test_solve_pow_b(0,32);
+  test_solve_pow_b(1,32);
+  test_solve_pow_b(2,32);
+  test_solve_pow_b(3,32);
+#ifdef USE_SIMD
+  test_solve_pow_b(4,32);
+#endif
   exit(1);
 #endif
 
@@ -398,9 +445,9 @@ int main(int argc, char** argv) {
 
     // Client data for replies
     struct {
-        string name="Andres B", mailnum="2", mail1="abalant@gmail.com", mail2="";
+        string name="Andres B.", mailnum="2", mail1="abalant@gmail.com", mail2="";
         string skype="balant", birthdate="02.10.77", country="Spain";
-        string addrline1="Camino el Ave 168 D", addrline2="38208 La Torre";
+        string addrline1="Camino el Ave 168 D", addrline2="38208 La Laguna";
         string addrnum="2";
     } dc;
 
@@ -423,13 +470,12 @@ int main(int argc, char** argv) {
   cout<<BLUE<<"-------------POW TEST--------------"<<RESET<<endl;
   string sdiff = argv[1];
   int diff = atoi(sdiff.c_str());
-  cout<<CYAN<<"Difficulty: "<<diff<<RESET<<endl;
 #else
   cout<<BLUE<<"-------------COMMUNICATION--------------"<<RESET<<endl;
 #endif
   
 #ifndef TEST_POW
-      while (dec) {
+      while (true) {
         int bytes = SSL_read(ssl, buf, sizeof(buf)-1);
         if (bytes <= 0) break;
         buf[bytes] = '\0';
@@ -440,34 +486,42 @@ int main(int argc, char** argv) {
         std::string authdata;
         std::string edata;
         if (cmd == "HELO"){
-          cout<<GREEN<<cmd<<RESET<<endl;
+          cout<<GREEN<<"Sending "<<RESET<<cmd<<endl;
           SSL_write(ssl, "EHLO\n", 5);
         }
-          else if (cmd == "POW") {
+        else if (cmd == "POW") {
 #else
       while(dec){
         std::string cmd="POW";
         if (cmd == "POW") {
 #endif
 #ifndef TEST_POW
-            cout<<GREEN<<cmd<<RESET<<endl;
-            int diff;
-            iss >> authdata>>diff;
-            cout<<GREEN<<"Difficulty = "<<diff<<RESET<<"  authdata = "<<authdata<<RESET<<endl;
+          cout<<GREEN<<"Recieving "<<RESET<<cmd<<endl;
+          int diff;
+          iss >> authdata>>diff;
+          cout<<GREEN<<"Difficulty = "<<RESET<<diff<<endl;
+          cout<<GREEN<<"authdata = "<<RESET<<authdata<<endl;
 #else
-            string authdata="zhLjlDmDPamQVpQZlWZilpBvWEHKFApzkQwDsFnpAWBdrxvstzcOFcAxnQUITpZF";
+          string authdata="zhLjlDmDPamQVpQZlWZilpBvWEHKFApzkQwDsFnpAWBdrxvstzcOFcAxnQUITpZF";
+          cout<<GREEN<<"Difficulty = "<<RESET<<diff<<endl;
+          cout<<GREEN<<"Authdata = "<<RESET<<authdata<<endl;
 #endif
-            string pads = pad(diff,char_pad);           
-//            string sol=solve_pow(pads,authdata,solution_found, counter_ind);
-            string sol=solve_pow_batched(pads,authdata,signal_out, diff);
-            dec=false;
+          string pads = string(diff, char_pad);           
+          string sol = solve_pow_batch(pads,authdata,signal_out, diff);
+          cout<<GREEN<<"Solution = " <<RESET<<sol<<endl;
+#ifdef TEST_POW
+          dec=false;
+#endif
+
 #ifdef TIME_OUT
-            if(true==signal_out)
-              break;
+          if(true==signal_out)
+            break;
 #endif
-           
+
 #ifndef TEST_POW
+            cout<<GREEN<<"Sending" <<RESET<<endl;
             SSL_write(ssl, sol.c_str(), sol.size());
+            cout<<GREEN<<"Done" <<RESET<<endl;
 #endif
           }
 #ifndef TEST_POW
@@ -477,53 +531,53 @@ int main(int argc, char** argv) {
             break;
           }
         else if (cmd == "NAME") {
-            iss >> authdata;
-            string reply = sha1_hex(authdata + dc.name) + " " + dc.name + "\n";
-            SSL_write(ssl, reply.c_str(), reply.size());
+            string reply = sha1_hex(authdata + cmd) + " " + dc.name + "\n";
+            cout<<GREEN<<"Sending NAME"<<RESET<<endl;
+             SSL_write(ssl, reply.c_str(), reply.size());
         }
         else if (cmd == "MAILNUM") {
-            iss >> authdata;
-            string reply = sha1_hex(authdata + dc.mailnum) + " " + dc.mailnum + "\n";
+            string reply = sha1_hex(authdata + cmd) + " " + dc.mailnum + "\n";
+            cout<<GREEN<<"Sending "<<cmd<<RESET<<endl;
             SSL_write(ssl, reply.c_str(), reply.size());
         }
         else if (cmd == "MAIL1") {
-            iss >> authdata;
-            string reply = sha1_hex(authdata + dc.mail1) + " " + dc.mail1 + "\n";
+            string reply = sha1_hex(authdata + cmd) + " " + dc.mail1 + "\n";
+            cout<<GREEN<<"Sending "<<cmd<<RESET<<endl;
             SSL_write(ssl, reply.c_str(), reply.size());
         }
         else if (cmd == "MAIL2") {
-            iss >> authdata;
-            string reply = sha1_hex(authdata + dc.mail2) + " " + dc.mail2 + "\n";
+            string reply = sha1_hex(authdata + cmd) + " " + dc.mail2 + "\n";
+            cout<<GREEN<<"Sending "<<cmd<<RESET<<endl;
             SSL_write(ssl, reply.c_str(), reply.size());
         }
         else if (cmd == "SKYPE") {
-            iss >> authdata;
-            string reply = sha1_hex(authdata + dc.skype) + " " + dc.skype + "\n";
+            string reply = sha1_hex(authdata + cmd) + " " + dc.skype + "\n";
+            cout<<GREEN<<"Sending "<<cmd<<RESET<<endl;
             SSL_write(ssl, reply.c_str(), reply.size());
         }
         else if (cmd == "BIRTHDATE") {
-            iss >> authdata;
-            string reply = sha1_hex(authdata + dc.birthdate) + " " + dc.birthdate + "\n";
+            string reply = sha1_hex(authdata + cmd) + " " + dc.birthdate + "\n";
+            cout<<GREEN<<"Sending "<<cmd<<RESET<<endl;
             SSL_write(ssl, reply.c_str(), reply.size());
         }
         else if (cmd == "COUNTRY") {
-            iss >> authdata;
-            string reply = sha1_hex(authdata + dc.country) + " " + dc.country + "\n";
+            string reply = sha1_hex(authdata + cmd) + " " + dc.country + "\n";
+            cout<<GREEN<<"Sending "<<cmd<<RESET<<endl;
             SSL_write(ssl, reply.c_str(), reply.size());
         }
         else if (cmd == "ADDRNUM") {
-            iss >> authdata;
-            string reply = sha1_hex(authdata + dc.addrnum) + " " + dc.addrnum + "\n";
+            string reply = sha1_hex(authdata + cmd) + " " + dc.addrnum + "\n";
+            cout<<GREEN<<"Sending "<<cmd<<RESET<<endl;
             SSL_write(ssl, reply.c_str(), reply.size());
         }
         else if (cmd == "ADDRLINE1") {
-            iss >> authdata;
-            string reply = sha1_hex(authdata + dc.addrline1) + " " + dc.addrline1 + "\n";
+            string reply = sha1_hex(authdata + cmd) + " " + dc.addrline1 + "\n";
+            cout<<GREEN<<"Sending "<<cmd<<RESET<<endl;
             SSL_write(ssl, reply.c_str(), reply.size());
         }
         else if (cmd == "ADDRLINE2") {
-            iss >> authdata;//            std::string sol = solve_pow(diff, authdata);
-            string reply = sha1_hex(authdata + dc.addrline2) + " " + dc.addrline2 + "\n";
+            string reply = sha1_hex(authdata + cmd) + " " + dc.addrline2 + "\n";
+            cout<<GREEN<<"Sending "<<cmd<<RESET<<endl;
             SSL_write(ssl, reply.c_str(), reply.size());
         }
         else if (cmd == "END") {
@@ -558,5 +612,4 @@ cout<<endl;
   cout<<endl;
   return 0;
 }
-
 
