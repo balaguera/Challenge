@@ -187,7 +187,8 @@ void test_solve_pow_b(int select, int bash_size) // Bench the combnation of rand
    int jthread=0;//omp_get_thread_num();
    gsl_rng *gBaseRand =gsl_rng_alloc(gsl_rng_mt19937); 
    gsl_rng_set (gBaseRand, get_seed(jthread,1));
-   string authdata="lkk5sdf14313fg12fdg31";// some test
+   string authdata="mENPJVIzNjmEeuLTYxvitBuyeMTnpblBqRXibFzJfwkbPnJPoUVILmZmuTURvFrE";// some test
+   string known_test = "&2kkbP{:Uw{4";
    vector<std::string> suffix(bash_size);
    vector<std::string> hashes(bash_size);
    if(0==select)
@@ -197,8 +198,8 @@ void test_solve_pow_b(int select, int bash_size) // Bench the combnation of rand
       for (int i = 0; i < bash_size; ++i)
       suffix[i] =  "asc";//random_string(gBaseRand);
       for (int i = 0; i < bash_size; ++i) 
-        hashes[i] = sha1_hex(suffix[i] + authdata);
-        //cout<<suffix[0]+authdata<<"  "<<hashes[0]<<endl;
+        hashes[i] = sha1_hex(authdata+suffix[i]);
+        cout<<suffix[0]+authdata<<"  "<<hashes[0]<<endl;
      }
     }
     else if(1==select){
@@ -208,8 +209,8 @@ void test_solve_pow_b(int select, int bash_size) // Bench the combnation of rand
        suffix[i] =  "asc";//random_string(gBaseRand);
 //       suffix[i] = random_string(gBaseRand);
        for (int i = 0; i < bash_size; ++i) 
-        hashes[i] = sha1_hex_n(suffix[i] + authdata);
-      //  cout<<suffix[0]+authdata<<"  "<<hashes[0]<<endl;
+        hashes[i] = sha1_hex_n(authdata+suffix[i]);
+        cout<<suffix[0]+authdata<<"  "<<hashes[0]<<endl;
       }
     }
     else if(2==select){
@@ -219,9 +220,9 @@ void test_solve_pow_b(int select, int bash_size) // Bench the combnation of rand
         for (int i = 0; i < bash_size; ++i)
           suffix[i] =  "asc";//random_string(gBaseRand);
         for (int i = 0; i < bash_size; ++i) 
-          inputs[i] = suffix[i] + authdata;
+          inputs[i] =   authdata+suffix[i];
         sha256_batch_hex(inputs, hashes);
-    //   cout<<inputs[0]<<"  "<<hashes[0]<<endl;
+       cout<<inputs[0]<<"  "<<hashes[0]<<endl;
       }
     }
     else if(3==select){
@@ -231,9 +232,9 @@ void test_solve_pow_b(int select, int bash_size) // Bench the combnation of rand
         for (int i = 0; i < bash_size; ++i)
           suffix[i] =  "asc";//random_string(gBaseRand);
         for (int i = 0; i < bash_size; ++i) 
-          inputs[i] = suffix[i] + authdata;
+        inputs[i] =   authdata+suffix[i];
         sha1_batch_hex_n(inputs, hashes);
-  //     cout<<inputs[0]<<"  "<<hashes[0]<<endl;
+       cout<<inputs[0]<<"  "<<hashes[0]<<endl;
       }
     }
 
@@ -244,9 +245,9 @@ void test_solve_pow_b(int select, int bash_size) // Bench the combnation of rand
         for (int i = 0; i < bash_size; ++i)
           suffix[i] = "asc";//random_string(gBaseRand);
         for (int i = 0; i < bash_size; ++i) 
-          inputs[i] = suffix[i] + authdata;
+        inputs[i] =   authdata+suffix[i];
         sha1_simd_batch(inputs, hashes);
-//        cout<<inputs[0]<<"  "<<hashes[0]<<endl;
+        cout<<inputs[0]<<"  "<<hashes[0]<<endl;
       }
     }
 
@@ -344,12 +345,12 @@ new_seed:
 #pragma omp critical
           {
             solution=suffix[i];
-#ifdef DEBUG
+//#ifdef DEBUG
             cout<<endl;
             cout << CYAN << "POW solution found by thread " << jthread <<endl;
             cout<<"Suffix: " << suffix[i]<<endl;
             cout<<"Checksum: " << hashes[i] << RESET << endl;
-#endif
+//#endif
           }
           local_found = true; // prevent duplicate prints
         }
@@ -514,7 +515,7 @@ int main(int argc, char** argv) {
 #endif
           string pads = string(diff, char_pad);           
           string sol = solve_pow_batch(pads,authdata,signal_out, diff);
-          cout<<GREEN<<"Solution = " <<RESET<<sol<<endl;
+//          cout<<GREEN<<"Solution = " <<RESET<<sol<<endl;
 #ifdef TEST_POW
           dec=false;
 #endif
@@ -527,7 +528,7 @@ int main(int argc, char** argv) {
 #ifndef TEST_POW
             cout<<GREEN<<"Sending" <<RESET<<endl;
             string sol_and_end = sol+"\n";
-            SSL_write(ssl, sol_and_end.c_str(), sol.size());
+            SSL_write(ssl, sol_and_end.c_str(), sol.size()+1);
             cout<<GREEN<<"Done" <<RESET<<endl;
 #endif
           }
