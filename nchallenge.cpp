@@ -503,7 +503,7 @@ int main(int argc, char** argv) {
 #endif
 #ifndef TEST_POW
           cout<<GREEN<<"Recieving "<<RESET<<cmd<<endl;
-          int diff;
+          int diff=9; // Initialized to the value of the challenge. To be read in nay case.
           iss >> authdata>>diff;
           cout<<GREEN<<"Difficulty = "<<RESET<<diff<<endl;
           cout<<GREEN<<"authdata = "<<RESET<<authdata<<endl;
@@ -526,7 +526,8 @@ int main(int argc, char** argv) {
 
 #ifndef TEST_POW
             cout<<GREEN<<"Sending" <<RESET<<endl;
-            SSL_write(ssl, sol.c_str(), sol.size());
+            string sol_and_end = sol+"\n";
+            SSL_write(ssl, sol_and_end.c_str(), sol.size());
             cout<<GREEN<<"Done" <<RESET<<endl;
 #endif
           }
@@ -587,7 +588,8 @@ int main(int argc, char** argv) {
             SSL_write(ssl, reply.c_str(), reply.size());
         }
         else if (cmd == "END") {
-            SSL_write(ssl, "OK\n", 3);
+           cout<<GREEN<<"END"<<RESET<<endl;
+           SSL_write(ssl, "OK\n", 3);
             break;
         }
         else {
