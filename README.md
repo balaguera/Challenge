@@ -1,4 +1,4 @@
-C++ code for COmmunication Challenge.
+C++ code for Communication Challenge.
 Aims at solving a POW TEST with DIFFICULTY = 9.
 Uses: 
 -GSL for random tring generation (gsl_rng_mt19937)
