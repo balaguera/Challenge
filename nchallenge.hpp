@@ -66,7 +66,7 @@ using namespace chrono;
 /**
  * @brief Define to stop code after a given time_window. Active with def and undef TEST_POW
 */
-//#define TIME_OUT 
+#define TIME_OUT 
 // ********************************************
 #ifdef TEST_POW
 /**
@@ -81,14 +81,28 @@ using namespace chrono;
 */
 //#define  BENCHMARK
 // ********************************************
+/**
+ * @brief Define to use vectorization
+*/
 #define USE_SIMD
-
-
+// ********************************************
+/**
+ * @brief Define to use vectorization
+*/
+//#define NEW_SEED
 // ********************************************
 /**
  * @brief Define to write on screen some data ehen searching the solution for pow
 */
-//#define DEBUG
+#define DEBUG
+// ********************************************
+/**
+ * @brief Use random string generation avoiding forbidden characters
+*/
+
+#define USE_RANDOM_GEN_SAFE
+
+// ********************************************
 // ********************************************
 #define _USE_COLORS_
 // ********************************************
@@ -169,7 +183,7 @@ constexpr int TIME_WINDOW = 7190; // Two hours - 10 secs
  * @brief Time window allowed for the process (mainly POW), in secs before chosing a new seed
  * @details Using a new seed won´t help much if the initial seeds are well distirbuted.
 */
-constexpr int TIME_WINDOW_NEW_SEED = 180; //  
+constexpr int TIME_WINDOW_NEW_SEED = 3600; //  
 #endif
 // **************************************************************************
 #ifdef USE_SOLUTION
@@ -189,6 +203,21 @@ constexpr int STEPS_TEST = 500000;
 /**
  * @brief  Valid UTF-8 characters 
 */
+
+
+const vector<string> ALPHA = {
+"!", "\"", "#", "$", "%", "&", "'", "(", ")", "*", "+", ",", "-",
+    ".", "/", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9",
+    ":", ";", "<", "=", ">", "?", "@",
+    "A","B","C","D","E","F","G","H","I","J","K","L","M",
+    "N","O","P","Q","R","S","T","U","V","W","X","Y","Z",
+    "[","\\","]","^","_","`",
+    "a","b","c","d","e","f","g","h","i","j","k","l","m",
+    "n","o","p","q","r","s","t","u","v","w","x","y","z",
+    "{","|","}","~","§", "±", "ç", "ü", "ö", "ä", "ñ", "á", "é", "í", "ó", "ú", "¿", "¡", "ß", "ø", "æ", "œ"};
+
+
+/*
 const vector<string> ALPHA = {
   "A","B","C","D","E","F","G","H","I","J","K","L","M",
   "N","O","P","Q","R","S","T","U","V","W","X","Y","Z",
@@ -199,6 +228,7 @@ const vector<string> ALPHA = {
   "[","]","{","}",";",":","'",",","<",".",">","/","?",
   "á","é","í","ó","ú","ñ","ç","à","è","ì","ò","ù"
 };
+*/
 
 // **************************************************************************
 /**
@@ -210,7 +240,18 @@ const vector<string> solutions= {
     "6ùmIRb_áLcJl", 
     "A6L6+cC-p!wì"};
 
+
+
 // **************************************************************************
+bool has_disallowed_bytes(const std::string& str) {
+      for (unsigned char c : str) {
+          if (c == '\t' || c == '\n' || c == '\r' || c == ' ')
+              return true;
+      }
+      return false;
+  }    
+// **************************************************************************
+#ifndef USE_RANDOM_GEN_SAFE
 /**
  * @brief Random string generator.
 */
@@ -223,10 +264,27 @@ string random_string(gsl_rng *gBaseRand) {
   }
   return rstring;
 }
+#endif
+// **************************************************************************
+#ifdef USE_RANDOM_GEN_SAFE
+/**
+ * @brief Random string generator.
+*/
+string random_string(gsl_rng *gBaseRand) {
+  std::string rstring;
+  do {
+      rstring.clear();
+      for (int i = 0; i < STRING_LENGTH; ++i) {
+        rstring += ALPHA[gsl_rng_uniform_int(gBaseRand, ALPHA.size())];
+      }
+  } while (has_disallowed_bytes(rstring));
+  return rstring;
+}
+#endif
 // **************************************************************************
 /**
  * @brief Random string generator.
- * @details This shows similar efficiency as random_string(rng)
+ * @details This shows avoids the appearence of forbidden characters
 */
 string random_string_b(gsl_rng* gBaseRand) { 
   std::string str(STRING_LENGTH, 0);

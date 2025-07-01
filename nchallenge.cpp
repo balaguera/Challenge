@@ -120,22 +120,25 @@ void test_hash(){
 #endif
 // **************************************************************************
 // **************************************************************************
-
 inline void send_response(SSL* ssl, const std::string& authdata, 
   const std::string& cmd, std::istringstream& iss, const std::string& value) {
   string nonce;
   iss >> nonce;
-  string reply = sha1_hex(authdata + nonce) + " " + value + "\n";
-  cout << GREEN << "Sending " << cmd << RESET << endl;
-  cout << GREEN << "data: " << value << RESET << endl;
-  cout << GREEN << "nonce " << nonce << RESET << endl;
+  string reply = sha1_hex_n(authdata + nonce) + " " + value + "\n";
+#ifdef DEBUG
+  cout << GREEN << "Sending " << RESET <<cmd  << endl;
+  cout << GREEN << "value: " << RESET<< value << endl;
+  cout << GREEN << "authdata: " << RESET<< authdata << endl;
+  cout << GREEN << "nonce " << RESET <<nonce <<endl;
+  cout << GREEN << "reply " << RESET <<reply <<endl;
+#endif
   SSL_write(ssl, reply.c_str(), reply.size());
+#ifdef DEBUG
   cout << GREEN << "Done " << cmd << RESET << endl;
+#endif
 }
-
 // **************************************************************************
 // **************************************************************************
-
 string solve_pow(string &pads, string &authdata, atomic<bool>&solution_found, int &counter_ind)
 {
   string solution;
@@ -214,7 +217,7 @@ void test_solve_pow_b(int select, int bash_size) // Bench the combnation of rand
       suffix[i] =  "asc";//random_string(gBaseRand);
       for (int i = 0; i < bash_size; ++i) 
         hashes[i] = sha1_hex(authdata+suffix[i]);
-        cout<<suffix[0]+authdata<<"  "<<hashes[0]<<endl;
+     //   cout<<suffix[0]+authdata<<"  "<<hashes[0]<<endl;
      }
     }
     else if(1==select){
@@ -225,7 +228,7 @@ void test_solve_pow_b(int select, int bash_size) // Bench the combnation of rand
 //       suffix[i] = random_string(gBaseRand);
        for (int i = 0; i < bash_size; ++i) 
         hashes[i] = sha1_hex_n(authdata+suffix[i]);
-        cout<<suffix[0]+authdata<<"  "<<hashes[0]<<endl;
+    //    cout<<suffix[0]+authdata<<"  "<<hashes[0]<<endl;
       }
     }
     else if(2==select){
@@ -237,7 +240,7 @@ void test_solve_pow_b(int select, int bash_size) // Bench the combnation of rand
         for (int i = 0; i < bash_size; ++i) 
           inputs[i] =   authdata+suffix[i];
         sha256_batch_hex(inputs, hashes);
-       cout<<inputs[0]<<"  "<<hashes[0]<<endl;
+       //cout<<inputs[0]<<"  "<<hashes[0]<<endl;
       }
     }
     else if(3==select){
@@ -249,7 +252,7 @@ void test_solve_pow_b(int select, int bash_size) // Bench the combnation of rand
         for (int i = 0; i < bash_size; ++i) 
         inputs[i] =   authdata+suffix[i];
         sha1_batch_hex_n(inputs, hashes);
-       cout<<inputs[0]<<"  "<<hashes[0]<<endl;
+   //    cout<<inputs[0]<<"  "<<hashes[0]<<endl;
       }
     }
 
@@ -262,7 +265,7 @@ void test_solve_pow_b(int select, int bash_size) // Bench the combnation of rand
         for (int i = 0; i < bash_size; ++i) 
         inputs[i] =   authdata+suffix[i];
         sha1_simd_batch(inputs, hashes);
-        cout<<inputs[0]<<"  "<<hashes[0]<<endl;
+      //  cout<<inputs[0]<<"  "<<hashes[0]<<endl;
       }
     }
 
@@ -348,7 +351,7 @@ new_seed:
 
       bool local_found = false;
       for (int i = 0; i < BATCH_SIZE && !local_found; ++i) {
-#ifdef DEBUG
+#ifdef DEBUG_int
         static thread_local int debug_counter = 0;
         if (++debug_counter % 100 == 0) {
           cout << "Thread " << jthread << " testing: " << suffix[i] << " → " << hashes[i].substr(0, 12) << "\n";
@@ -360,13 +363,13 @@ new_seed:
 #pragma omp critical
           {
             solution=suffix[i];
-//#ifdef DEBUG
+#ifdef DEBUG
             cout<<endl;
             cout << CYAN << "POW solution found by thread " << jthread <<endl;
             cout<<"Suffix: " << suffix[i]<<endl;
             cout<<"Checksum: " << hashes[i] << RESET << endl;
-//#endif
-          }
+#endif
+         }
           local_found = true; // prevent duplicate prints
         }
       } 
@@ -468,7 +471,7 @@ int main(int argc, char** argv) {
     // Client data for replies
     struct {
         string name="Andres Balaguera.", mailnum="2", mail1="abalant@gmail.com", mail2="balaguera-ext@iac.es";
-        string skype="balant.skype", birthdate="02.10.1977", country="Spain";
+        string skype="N/A", birthdate="02.10.1977", country="Spain";
         string addrline1="Camino Ave 168", addrline2="38208 LaLaguna";
         string addrnum="2";
     } dc;
@@ -546,6 +549,11 @@ std::string authdata="";
             string sol_and_end = sol + "\n";
             SSL_write(ssl, sol_and_end.c_str(), sol.size()+1);
             cout<<GREEN<<"Done" <<RESET<<endl;
+#ifdef DEBUG_int
+            cout<<BLUE<<"Check sh1_hex :"<<sha1_hex(authdata+sol)<<RESET<<endl;
+            cout<<BLUE<<"Check sh1_hex_n :"<<sha1_hex_n(authdata+sol)<<RESET<<endl;
+            cout<<BLUE<<"Check sh1_fast :"<<sha1_hex_fast(authdata+sol)<<RESET<<endl;
+#endif
 #endif
           }
 #ifndef TEST_POW
