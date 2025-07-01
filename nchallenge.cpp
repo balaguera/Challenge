@@ -12,6 +12,7 @@
  #include "/home/balaguera/Challenge/nchallenge.hpp"
  #include "/home/balaguera/Challenge/ssl.hpp"
 
+ using namespace std;
 
 // **************************************************************************
 // **************************************************************************
@@ -117,6 +118,20 @@ void test_hash(){
 
 }
 #endif
+// **************************************************************************
+// **************************************************************************
+
+inline void send_response(SSL* ssl, const std::string& authdata, 
+  const std::string& cmd, std::istringstream& iss, const std::string& value) {
+  string nonce;
+  iss >> nonce;
+  string reply = sha1_hex(authdata + nonce) + " " + value + "\n";
+  cout << GREEN << "Sending " << cmd << RESET << endl;
+  cout << GREEN << "data: " << value << RESET << endl;
+  cout << GREEN << "nonce " << nonce << RESET << endl;
+  SSL_write(ssl, reply.c_str(), reply.size());
+  cout << GREEN << "Done " << cmd << RESET << endl;
+}
 
 // **************************************************************************
 // **************************************************************************
@@ -452,9 +467,9 @@ int main(int argc, char** argv) {
 
     // Client data for replies
     struct {
-        string name="Andres B.", mailnum="2", mail1="abalant@gmail.com", mail2="";
-        string skype="balant", birthdate="02.10.77", country="Spain";
-        string addrline1="Camino el Ave 168 D", addrline2="38208 La Laguna";
+        string name="Andres Balaguera.", mailnum="2", mail1="abalant@gmail.com", mail2="balaguera-ext@iac.es";
+        string skype="balant.skype", birthdate="02.10.1977", country="Spain";
+        string addrline1="Camino Ave 168", addrline2="38208 LaLaguna";
         string addrnum="2";
     } dc;
 
@@ -480,6 +495,7 @@ int main(int argc, char** argv) {
 #else
   cout<<BLUE<<"-------------COMMUNICATION--------------"<<RESET<<endl;
 #endif
+std::string authdata="";
   
 #ifndef TEST_POW
       while (true) {
@@ -489,7 +505,7 @@ int main(int argc, char** argv) {
         std::string resp(buf);
         std::istringstream iss(resp);
         std::string cmd;
-        iss >> cmd;
+        iss >> cmd;   //args[0]
         std::string authdata;
         std::string edata;
         if (cmd == "HELO"){
@@ -503,17 +519,17 @@ int main(int argc, char** argv) {
         if (cmd == "POW") {
 #endif
 #ifndef TEST_POW
-          cout<<GREEN<<"Recieving "<<RESET<<cmd<<endl;
+          cout<<GREEN<<"Solving "<<RESET<<cmd<<endl;
           int diff=9; // Initialized to the value of the challenge. To be read in nay case.
-          iss >> authdata>>diff;
+          iss >> authdata>>diff; //args[1], args[2]
           cout<<GREEN<<"Difficulty = "<<RESET<<diff<<endl;
           cout<<GREEN<<"authdata = "<<RESET<<authdata<<endl;
 #else
-          string authdata="zhLjlDmDPamQVpQZlWZilpBvWEHKFApzkQwDsFnpAWBdrxvstzcOFcAxnQUITpZF";
+          string authdata="zhLjlDmDPamQVpQZlWZilpBvWEHKFApzkQwDsFnpAWBdrxvstzcOFcAxnQUITpZF";//Some data to test with
           cout<<GREEN<<"Difficulty = "<<RESET<<diff<<endl;
           cout<<GREEN<<"Authdata = "<<RESET<<authdata<<endl;
 #endif
-          string pads = string(diff, char_pad);           
+          string pads = string(diff, char_pad);        // Use c++20 feature   
           string sol = solve_pow_batch(pads,authdata,signal_out, diff);
 //          cout<<GREEN<<"Solution = " <<RESET<<sol<<endl;
 #ifdef TEST_POW
@@ -527,7 +543,7 @@ int main(int argc, char** argv) {
 
 #ifndef TEST_POW
             cout<<GREEN<<"Sending" <<RESET<<endl;
-            string sol_and_end = sol+"\n";
+            string sol_and_end = sol + "\n";
             SSL_write(ssl, sol_and_end.c_str(), sol.size()+1);
             cout<<GREEN<<"Done" <<RESET<<endl;
 #endif
@@ -536,58 +552,38 @@ int main(int argc, char** argv) {
           else if (cmd == "ERROR") {
               cerr<<"ERROR: "<<resp.substr(6)<<endl;
   //          SSL_write(ssl, "ERROR: "+ edata+ "\n", 5);
-            break;
+             break;
           }
-        else if (cmd == "NAME") {
-            string reply = sha1_hex(authdata + cmd) + " " + dc.name + "\n";
-            cout<<GREEN<<"Sending NAME"<<RESET<<endl;
-             SSL_write(ssl, reply.c_str(), reply.size());
-        }
-        else if (cmd == "MAILNUM") {
-            string reply = sha1_hex(authdata + cmd) + " " + dc.mailnum + "\n";
-            cout<<GREEN<<"Sending "<<cmd<<RESET<<endl;
-            SSL_write(ssl, reply.c_str(), reply.size());
-        }
-        else if (cmd == "MAIL1") {
-            string reply = sha1_hex(authdata + cmd) + " " + dc.mail1 + "\n";
-            cout<<GREEN<<"Sending "<<cmd<<RESET<<endl;
-            SSL_write(ssl, reply.c_str(), reply.size());
-        }
-        else if (cmd == "MAIL2") {
-            string reply = sha1_hex(authdata + cmd) + " " + dc.mail2 + "\n";
-            cout<<GREEN<<"Sending "<<cmd<<RESET<<endl;
-            SSL_write(ssl, reply.c_str(), reply.size());
-        }
-        else if (cmd == "SKYPE") {
-            string reply = sha1_hex(authdata + cmd) + " " + dc.skype + "\n";
-            cout<<GREEN<<"Sending "<<cmd<<RESET<<endl;
-            SSL_write(ssl, reply.c_str(), reply.size());
-        }
-        else if (cmd == "BIRTHDATE") {
-            string reply = sha1_hex(authdata + cmd) + " " + dc.birthdate + "\n";
-            cout<<GREEN<<"Sending "<<cmd<<RESET<<endl;
-            SSL_write(ssl, reply.c_str(), reply.size());
-        }
-        else if (cmd == "COUNTRY") {
-            string reply = sha1_hex(authdata + cmd) + " " + dc.country + "\n";
-            cout<<GREEN<<"Sending "<<cmd<<RESET<<endl;
-            SSL_write(ssl, reply.c_str(), reply.size());
-        }
-        else if (cmd == "ADDRNUM") {
-            string reply = sha1_hex(authdata + cmd) + " " + dc.addrnum + "\n";
-            cout<<GREEN<<"Sending "<<cmd<<RESET<<endl;
-            SSL_write(ssl, reply.c_str(), reply.size());
-        }
-        else if (cmd == "ADDRLINE1") {
-            string reply = sha1_hex(authdata + cmd) + " " + dc.addrline1 + "\n";
-            cout<<GREEN<<"Sending "<<cmd<<RESET<<endl;
-            SSL_write(ssl, reply.c_str(), reply.size());
-        }
-        else if (cmd == "ADDRLINE2") {
-            string reply = sha1_hex(authdata + cmd) + " " + dc.addrline2 + "\n";
-            cout<<GREEN<<"Sending "<<cmd<<RESET<<endl;
-            SSL_write(ssl, reply.c_str(), reply.size());
-        }
+        else if (cmd == "NAME") 
+          send_response(ssl, authdata, cmd, iss, dc.name);
+
+         else if (cmd == "MAILNUM") 
+          send_response(ssl, authdata, cmd, iss, dc.mailnum);
+       
+        else if (cmd == "MAIL1") 
+          send_response(ssl, authdata, cmd, iss, dc.mail1);
+        
+        else if (cmd == "MAIL2") 
+          send_response(ssl, authdata, cmd, iss, dc.mail2);
+        
+        else if (cmd == "SKYPE") 
+          send_response(ssl, authdata, cmd, iss, dc.skype);
+        
+        else if (cmd == "BIRTHDATE") 
+          send_response(ssl, authdata, cmd, iss, dc.birthdate);
+        
+        else if (cmd == "COUNTRY") 
+          send_response(ssl, authdata, cmd, iss, dc.country);
+        
+        else if (cmd == "ADDRNUM") 
+          send_response(ssl, authdata, cmd, iss, dc.addrnum);
+       
+        else if (cmd == "ADDRLINE1") 
+          send_response(ssl, authdata, cmd, iss, dc.addrline1);
+
+        else if (cmd == "ADDRLINE2") 
+          send_response(ssl, authdata, cmd, iss, dc.addrline2);
+        
         else if (cmd == "END") {
            cout<<GREEN<<"END"<<RESET<<endl;
            SSL_write(ssl, "OK\n", 3);
