@@ -134,7 +134,7 @@ inline void send_response(SSL* ssl, const std::string& authdata,
   cout << GREEN << "value: " << RESET<< value << endl;
   cout << GREEN << "authdata: " << RESET<< authdata << endl;
   cout << GREEN << "message " << RESET <<message <<endl;
-  cout << GREEN << "reply " << RESET <<reply <<endl;
+  cout << GREEN << "Reply: " << RESET <<reply<<RESET<<endl;
 #endif
   SSL_write(ssl, reply.c_str(), reply.size());
 #ifdef DEBUG
@@ -523,7 +523,8 @@ cout<<endl;
 #else
   cout<<BLUE<<"-------------COMMUNICATION--------------"<<RESET<<endl;
 #endif
-  std::string authdata="";
+  
+std::string authdata="";
   
 #ifndef TEST_POW
       while (true) {
@@ -534,7 +535,6 @@ cout<<endl;
         std::istringstream iss(resp);
         std::string cmd;
         iss >> cmd;   //args[0]
-        std::string authdata;
         std::string edata;
         if (cmd == "HELO"){
           cout<<GREEN<<"Sending "<<RESET<<cmd<<endl;
@@ -644,7 +644,7 @@ cout<<endl;
 #ifdef TIME_OUT
   if(false==signal_out)
 #endif
-  cout<<YELLOW<<"Solution found in "<<chrono::duration<double>(end_all-start_all).count()<<" seconds"<<RESET<<endl;
+  cout<<YELLOW<<"Connection finished after "<<chrono::duration<double>(end_all-start_all).count()<<" seconds"<<RESET<<endl;
   #ifdef TIME_OUT
   else
     cout<<RED<<"TIME OUT!. Solution not found in allowed time lapse (" <<TIME_WINDOW<<" s). Try to decrease difficulty or increase time window."<<RESET<<endl;
