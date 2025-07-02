@@ -121,15 +121,20 @@ void test_hash(){
 // **************************************************************************
 // **************************************************************************
 inline void send_response(SSL* ssl, const std::string& authdata, 
-  const std::string& cmd, std::istringstream& iss, const std::string& value) {
-  string nonce;
-  iss >> nonce;
-  string reply = sha1_hex_n(authdata + nonce) + " " + value + "\n";
-#ifdef DEBUG
+  const string& cmd, istringstream& iss, const string& value) {
+  string message;
+  iss >> message;
+#ifdef USE_SHA1
+  string reply = sha1_hex_n(authdata + message) + " " + value + "\n";
+#else
+  string reply = sha256_hex_fast(authdata + message) + " " + value + "\n";
+#endif
+
+  #ifdef DEBUG
   cout << GREEN << "Sending " << RESET <<cmd  << endl;
   cout << GREEN << "value: " << RESET<< value << endl;
   cout << GREEN << "authdata: " << RESET<< authdata << endl;
-  cout << GREEN << "nonce " << RESET <<nonce <<endl;
+  cout << GREEN << "message " << RESET <<message <<endl;
   cout << GREEN << "reply " << RESET <<reply <<endl;
 #endif
   SSL_write(ssl, reply.c_str(), reply.size());
@@ -162,8 +167,12 @@ string solve_pow(string &pads, string &authdata, atomic<bool>&solution_found, in
     // that begins with 9 leading zeroes in hexadecimal. That's a brute-force 
     // search problem, and the runtime grows exponentially with difficulty.
     string suffix=random_string(gBaseRand); //Short random string, server accepts all utf-8 characters:
-    string cksum_in_hex = sha1_hex(authdata+suffix);  //Hash the random sufix and the authdata
-#ifdef USE_OMP 
+#ifdef USE_SHA1
+  string cksum_in_hex = sha1_hex_n(authdata+suffix);  //Hash the random sufix and the authdata
+#else
+  string cksum_in_hex = sha256_hex(authdata+suffix);  //Hash the random sufix and the authdata
+#endif
+  #ifdef USE_OMP 
 #pragma omp atomic
 #endif
     counter_ind++;
@@ -344,9 +353,17 @@ new_seed:
       inputs[i] =  authdata + suffix[i] ; // THhs order is important. First authdata
 
 #ifdef USE_SIMD
-      sha1_simd_batch(inputs, hashes);
+#ifdef USE_SHA1
+    sha1_simd_batch(inputs, hashes);
 #else
+    sha256_simd_batch(inputs, hashes);
+#endif
+#else
+#ifdef USE_SHA1
       sha1_batch_hex_n(inputs, hashes); 
+#else
+     sha256_hex(inputs, hashes); 
+#endif
 #endif
 
       bool local_found = false;

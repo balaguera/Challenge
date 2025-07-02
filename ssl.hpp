@@ -163,14 +163,56 @@ static inline std::string hex_encode_sha1_avx2(const unsigned char* digest) {
 
 
 */
+// **************************************************************************
+// **************************************************************************
+// **************************************************************************
+static inline std::string hex_encode_sha256_avx2(const unsigned char* digest) {
+  constexpr size_t digest_len = 32;
+  constexpr size_t hex_len = digest_len * 2;
 
+  const __m256i hex_chars = _mm256_setr_epi8(
+      '0','1','2','3','4','5','6','7','8','9','a','b','c','d','e','f',
+      '0','1','2','3','4','5','6','7','8','9','a','b','c','d','e','f'
+  );
+
+  alignas(32) char buf[hex_len + 1];
+
+  // Load all 32 digest bytes into a 256-bit AVX2 register
+  __m256i bytes = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(digest));
+
+  // Extract high and low nibbles
+  __m256i lo = _mm256_and_si256(bytes, _mm256_set1_epi8(0x0F));
+  __m256i hi = _mm256_and_si256(_mm256_srli_epi16(bytes, 4), _mm256_set1_epi8(0x0F));
+
+  // Lookup ASCII hex characters
+  __m256i hex_hi = _mm256_shuffle_epi8(hex_chars, hi);
+  __m256i hex_lo = _mm256_shuffle_epi8(hex_chars, lo);
+
+  // Interleave high and low nibbles
+  alignas(32) char hex_hi_bytes[32];
+  alignas(32) char hex_lo_bytes[32];
+  _mm256_store_si256(reinterpret_cast<__m256i*>(hex_hi_bytes), hex_hi);
+  _mm256_store_si256(reinterpret_cast<__m256i*>(hex_lo_bytes), hex_lo);
+
+  for (int i = 0; i < 32; ++i) {
+      buf[2 * i]     = hex_hi_bytes[i];
+      buf[2 * i + 1] = hex_lo_bytes[i];
+  }
+
+  buf[hex_len] = '\0';
+  return std::string(buf);
+}
+
+
+
+// **************************************************************************
+// **************************************************************************
+// **************************************************************************
 // **************************************************************************
 // Hash one input -> hex string
 std::string sha1_hex_fast(const std::string& input) {
   unsigned char digest[SHA_DIGEST_LENGTH];
   SHA1((const unsigned char*)input.data(), input.size(), digest);
-
-
 #ifdef __AVX2__
   return hex_encode_sha1_avx2(digest);
 #else
@@ -184,6 +226,25 @@ std::string sha1_hex_fast(const std::string& input) {
 #endif
 }
 
+std::string sha256_hex_fast(const std::string& input) {
+  unsigned char digest[SHA256_DIGEST_LENGTH];
+  SHA256(reinterpret_cast<const unsigned char*>(input.data()), input.size(), digest);
+
+#ifdef __AVX2__
+  return hex_encode_sha256_avx2(digest);  // You must define this if using AVX2
+#else
+  std::string s;
+  s.reserve(64);  // SHA-256 hex is 64 characters
+  static const char* hex = "0123456789abcdef";
+  for (int i = 0; i < SHA256_DIGEST_LENGTH; ++i) {
+      s += hex[digest[i] >> 4];
+      s += hex[digest[i] & 0xF];
+  }
+  return s;
+#endif
+}
+
+
 // Batch hashing function. This is the faster function.
 void sha1_simd_batch(const std::vector<std::string>& inputs,
                    std::vector<std::string>& outputs) {
@@ -194,3 +255,15 @@ void sha1_simd_batch(const std::vector<std::string>& inputs,
       outputs[i] = sha1_hex_fast(inputs[i]);
   }
 }
+
+// Batch hashing function. This is the faster function.
+void sha256_simd_batch(const std::vector<std::string>& inputs,
+  std::vector<std::string>& outputs) {
+    size_t n = inputs.size();
+    outputs.resize(n);
+    // Do not use pragma omp parallel for if this used inside a parallel region,
+    for (size_t i = 0; i < n; ++i) {
+    outputs[i] = sha256_hex_fast(inputs[i]);
+    }
+
+  }
