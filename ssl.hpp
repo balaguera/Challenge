@@ -148,7 +148,6 @@ static inline std::string hex_encode_sha1_avx2(const unsigned char* digest) {
 // **************************************************************************
 // **************************************************************************
 // **************************************************************************
-#ifdef USE_SHA256
 static inline std::string hex_encode_sha256_avx2(const unsigned char* digest) {
   constexpr size_t digest_len = 32;
   constexpr size_t hex_len = digest_len * 2;
@@ -186,24 +185,6 @@ static inline std::string hex_encode_sha256_avx2(const unsigned char* digest) {
   return std::string(buf);
 }
 
-// Batch hashing function. This is the faster function.
-void sha256_simd_batch(const std::vector<std::string>& inputs,
-  std::vector<std::string>& outputs) {
-    size_t n = inputs.size();
-    outputs.resize(n);
-    // Do not use pragma omp parallel for if this used inside a parallel region,
-    for (size_t i = 0; i < n; ++i) {
-    outputs[i] = sha256_hex_fast(inputs[i]);
-    }
-
-  }
-#endif
-
-// **************************************************************************
-// **************************************************************************
-// **************************************************************************
-// **************************************************************************
-// Hash one input -> hex string
 std::string sha1_hex_fast(const std::string& input) {
   unsigned char digest[SHA_DIGEST_LENGTH];
   SHA1((const unsigned char*)input.data(), input.size(), digest);
@@ -219,6 +200,7 @@ std::string sha1_hex_fast(const std::string& input) {
   return s;
 #endif
 }
+
 
 std::string sha256_hex_fast(const std::string& input) {
   unsigned char digest[SHA256_DIGEST_LENGTH];
@@ -239,6 +221,27 @@ std::string sha256_hex_fast(const std::string& input) {
 }
 
 
+
+// **************************************************************************
+// **************************************************************************
+// **************************************************************************
+// **************************************************************************
+// Hash one input -> hex string
+
+
+// Batch hashing function. This is the faster function.
+void sha256_simd_batch(const std::vector<std::string>& inputs,
+  std::vector<std::string>& outputs) {
+    size_t n = inputs.size();
+    outputs.resize(n);
+    // Do not use pragma omp parallel for if this used inside a parallel region,
+    for (size_t i = 0; i < n; ++i) {
+    outputs[i] = sha256_hex_fast(inputs[i]);
+    }
+
+  }
+
+  
 // Batch hashing function. This is the faster function.
 void sha1_simd_batch(const std::vector<std::string>& inputs,
                    std::vector<std::string>& outputs) {

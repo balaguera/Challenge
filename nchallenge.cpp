@@ -523,7 +523,7 @@ cout<<endl;
 #else
   cout<<BLUE<<"-------------COMMUNICATION--------------"<<RESET<<endl;
 #endif
-std::string authdata="";
+  std::string authdata="";
   
 #ifndef TEST_POW
       while (true) {
