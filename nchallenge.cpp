@@ -129,7 +129,6 @@ inline void send_response(SSL* ssl, const std::string& authdata,
 #else
   string reply = sha256_hex_fast(authdata + message) + " " + value + "\n";
 #endif
-
   #ifdef DEBUG
   cout << GREEN << "Sending " << RESET <<cmd  << endl;
   cout << GREEN << "value: " << RESET<< value << endl;
@@ -427,7 +426,16 @@ int main(int argc, char** argv) {
 
   cout<<BLUE<<"================================="<<endl;
   cout<<"TSL challenge"<<endl;
-  cout<<"================================="<<RESET<<endl;
+#ifdef USE_SHA1
+  cout<<BLUE<<"Using SHA1"<<endl;
+#else
+  cout<<BLUE<<"Using SHA256"<<endl;
+#endif
+#ifdef USE_SIMD
+  cout<<BLUE<<"Using SIMD"<<endl;
+#endif
+cout<<"================================="<<RESET<<endl;
+cout<<endl;
 
   auto start_all = chrono::high_resolution_clock::now();
 
@@ -551,7 +559,10 @@ std::string authdata="";
 #endif
           string pads = string(diff, char_pad);        // Use c++20 feature   
           string sol = solve_pow_batch(pads,authdata,signal_out, diff);
-//          cout<<GREEN<<"Solution = " <<RESET<<sol<<endl;
+          auto end_sol = chrono::high_resolution_clock::now();
+          cout<<YELLOW<<"Solution found in "<<chrono::duration<double>(end_sol-start_all).count()<<" seconds"<<RESET<<endl;
+
+          //          cout<<GREEN<<"Solution = " <<RESET<<sol<<endl;
 #ifdef TEST_POW
           dec=false;
 #endif
@@ -576,7 +587,6 @@ std::string authdata="";
 #ifndef TEST_POW
           else if (cmd == "ERROR") {
               cerr<<"ERROR: "<<resp.substr(6)<<endl;
-  //          SSL_write(ssl, "ERROR: "+ edata+ "\n", 5);
              break;
           }
         else if (cmd == "NAME") 

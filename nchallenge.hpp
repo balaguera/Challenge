@@ -52,7 +52,8 @@ using namespace std;
 using namespace chrono;
 
 // ********************************************
-//#define USE_SHA1
+#define USE_SHA1
+
 #ifndef USE_SHA1
 #define USE_SHA256
 #endif
